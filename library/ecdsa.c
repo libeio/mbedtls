@@ -226,7 +226,7 @@ static int derive_mpi( const mbedtls_ecp_group *grp, mbedtls_mpi *x,
     size_t use_size = blen > n_size ? n_size : blen;
 
     MBEDTLS_MPI_CHK( mbedtls_mpi_read_binary( x, buf, use_size ) );
-    if( use_size * 8 > grp->nbits )
+    if( use_size * 8 > grp->nbits )		//偏移填满
         MBEDTLS_MPI_CHK( mbedtls_mpi_shift_r( x, use_size * 8 - grp->nbits ) );
 
     /* While at it, reduce modulo N */
@@ -259,7 +259,7 @@ static int ecdsa_sign_restartable( mbedtls_ecp_group *grp,
         return( MBEDTLS_ERR_ECP_BAD_INPUT_DATA );
 
     /* Make sure d is in range 1..n-1 */
-    if( mbedtls_mpi_cmp_int( d, 1 ) < 0 || mbedtls_mpi_cmp_mpi( d, &grp->N ) >= 0 )
+    if( mbedtls_mpi_cmp_int( d, 1 ) < 0 || mbedtls_mpi_cmp_mpi( d, &grp->N ) >= 0 )	//对私钥大小进行校验
         return( MBEDTLS_ERR_ECP_INVALID_KEY );
 
     mbedtls_ecp_point_init( &R );
@@ -294,7 +294,7 @@ static int ecdsa_sign_restartable( mbedtls_ecp_group *grp,
         }
 
         /*
-         * Steps 1-3: generate a suitable ephemeral keypair
+         * Steps 1-3: generate a suitable ephemeral keypair	//尝试生成合适的短钥
          * and set r = xR mod n
          */
         *p_key_tries = 0;

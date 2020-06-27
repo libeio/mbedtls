@@ -108,7 +108,7 @@ int mbedtls_pk_load_file( const char *path, unsigned char **buf, size_t *n )
 
     (*buf)[*n] = '\0';
 
-    if( strstr( (const char *) *buf, "-----BEGIN " ) != NULL )
+    if( strstr( (const char *) *buf, "-----BEGIN " ) != NULL )		//如果找到这个，说明证书是 PEM 文本格式，证书长度还需要包换最后一个 '\0'
         ++*n;
 
     return( 0 );
@@ -527,7 +527,7 @@ static int pk_get_rsapubkey( unsigned char **p,
     if( ( ret = mbedtls_asn1_get_tag( p, end, &len, MBEDTLS_ASN1_INTEGER ) ) != 0 )
         return( MBEDTLS_ERR_PK_INVALID_PUBKEY + ret );
 
-    if( ( ret = mbedtls_rsa_import_raw( rsa, *p, len, NULL, 0, NULL, 0,
+    if( ( ret = mbedtls_rsa_import_raw( rsa, *p, len, NULL, 0, NULL, 0,		//获取 N
                                         NULL, 0, NULL, 0 ) ) != 0 )
         return( MBEDTLS_ERR_PK_INVALID_PUBKEY );
 
@@ -537,14 +537,14 @@ static int pk_get_rsapubkey( unsigned char **p,
     if( ( ret = mbedtls_asn1_get_tag( p, end, &len, MBEDTLS_ASN1_INTEGER ) ) != 0 )
         return( MBEDTLS_ERR_PK_INVALID_PUBKEY + ret );
 
-    if( ( ret = mbedtls_rsa_import_raw( rsa, NULL, 0, NULL, 0, NULL, 0,
+    if( ( ret = mbedtls_rsa_import_raw( rsa, NULL, 0, NULL, 0, NULL, 0,		//获取 E
                                         NULL, 0, *p, len ) ) != 0 )
         return( MBEDTLS_ERR_PK_INVALID_PUBKEY );
 
     *p += len;
 
     if( mbedtls_rsa_complete( rsa ) != 0 ||
-        mbedtls_rsa_check_pubkey( rsa ) != 0 )
+        mbedtls_rsa_check_pubkey( rsa ) != 0 )	//构造RSA公钥并校验
     {
         return( MBEDTLS_ERR_PK_INVALID_PUBKEY );
     }
@@ -575,13 +575,13 @@ static int pk_get_pk_alg( unsigned char **p,
     if( ( ret = mbedtls_asn1_get_alg( p, end, &alg_oid, params ) ) != 0 )
         return( MBEDTLS_ERR_PK_INVALID_ALG + ret );
 
-    if( mbedtls_oid_get_pk_alg( &alg_oid, pk_alg ) != 0 )
+    if( mbedtls_oid_get_pk_alg( &alg_oid, pk_alg ) != 0 )	//获取非对称加密算法种类，RSA? EC?
         return( MBEDTLS_ERR_PK_UNKNOWN_PK_ALG );
 
     /*
      * No parameters with RSA (only for EC)
      */
-    if( *pk_alg == MBEDTLS_PK_RSA &&
+    if( *pk_alg == MBEDTLS_PK_RSA &&		//如果是 RSA，没有额外参数，只对 EC 有用，如 prime256v1
             ( ( params->tag != MBEDTLS_ASN1_NULL && params->tag != 0 ) ||
                 params->len != 0 ) )
     {
@@ -596,6 +596,16 @@ static int pk_get_pk_alg( unsigned char **p,
  *       algorithm            AlgorithmIdentifier,
  *       subjectPublicKey     BIT STRING }
  */
+ /**
+ 	Json格式示例
+	SEQUENCE : {
+		SEQUENCE : {								-- AlgorithmIdentifier
+			OBJECT IDENTIFIER						-- algorithm
+			ANY DEFINED BY algorithm OPTIONAL		-- parameters
+		}
+		BIT STRING									-- subjectPublicKey
+	}
+  */
 int mbedtls_pk_parse_subpubkey( unsigned char **p, const unsigned char *end,
                         mbedtls_pk_context *pk )
 {
@@ -611,7 +621,7 @@ int mbedtls_pk_parse_subpubkey( unsigned char **p, const unsigned char *end,
         return( MBEDTLS_ERR_PK_KEY_INVALID_FORMAT + ret );
     }
 
-    end = *p + len;
+    end = *p + len;		//p 指向 AlgorithmIdentifier tlv 的 t, len 是 SubjectPublicKeyInfo tlv 的 l, end 指向 AlgorithmIdentifier tlv 的 v 尾的下一位
 
     if( ( ret = pk_get_pk_alg( p, end, &pk_alg, &alg_params ) ) != 0 )
         return( ret );
@@ -632,11 +642,11 @@ int mbedtls_pk_parse_subpubkey( unsigned char **p, const unsigned char *end,
 #if defined(MBEDTLS_RSA_C)
     if( pk_alg == MBEDTLS_PK_RSA )
     {
-        ret = pk_get_rsapubkey( p, end, mbedtls_pk_rsa( *pk ) );
+        ret = pk_get_rsapubkey( p, end, mbedtls_pk_rsa( *pk ) );		//解析 RSA 公钥，保存到第三个参数中
     } else
 #endif /* MBEDTLS_RSA_C */
 #if defined(MBEDTLS_ECP_C)
-    if( pk_alg == MBEDTLS_PK_ECKEY_DH || pk_alg == MBEDTLS_PK_ECKEY )
+    if( pk_alg == MBEDTLS_PK_ECKEY_DH || pk_alg == MBEDTLS_PK_ECKEY )	//解析 ECDH 公钥 或 EC 公钥
     {
         ret = pk_use_ecparams( &alg_params, &mbedtls_pk_ec( *pk )->grp );
         if( ret == 0 )

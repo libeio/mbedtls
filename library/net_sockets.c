@@ -369,11 +369,11 @@ int mbedtls_net_accept( mbedtls_net_context *bind_ctx,
 
     /* UDP: hijack the listening socket to communicate with the client,
      * then bind a new socket to accept new connections */
-    if( type != SOCK_STREAM )
+    if( type != SOCK_STREAM )		//支持UDP通信，作为TCP通信
     {
         struct sockaddr_storage local_addr;
         int one = 1;
-
+		//原来的监听端口作为连接端口，再创建一个新的端口作为监听端口
         if( connect( bind_ctx->fd, (struct sockaddr *) &client_addr, n ) != 0 )
             return( MBEDTLS_ERR_NET_ACCEPT_FAILED );
 
