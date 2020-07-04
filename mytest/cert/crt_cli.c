@@ -30,7 +30,10 @@ do{ \
  */
 int main(int argc, char *argv[])
 {
-    int format, ret = 0;
+    (void)argc;
+    (void)argv;
+    int ret = 0;
+/*    int format;
     unsigned char *crtbuf = NULL;
     size_t crtlen;
     
@@ -61,6 +64,6 @@ cleanup:
     if (crtbuf) { free(crtbuf); crtbuf = NULL; }
     
     
-    
+*/    
     return ret;
 }

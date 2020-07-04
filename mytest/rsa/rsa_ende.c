@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "mbedtls/config.h"
 #include "mbedtls/rsa.h"
@@ -48,7 +50,7 @@
                 "910E4168387E3C30AA1E00C339A79508" \
                 "8452DD96A9A5EA5D9DCA68DA636032AF"
 
-void printMPI(char * desc, mbedtls_mpi * X)
+void mbedtls_mpi_print(char * desc, mbedtls_mpi * X)
 {
     int i, j, k, index = X->n - 1, tlen = sizeof(mbedtls_mpi_uint);
 
@@ -60,7 +62,7 @@ void printMPI(char * desc, mbedtls_mpi * X)
     for (i = index, k = 0; i >= 0; i--, k++)
     {
         for (j = tlen - 1; j >= 0; j--)
-            mbedtls_printf("%02X", (X->p[i] >> (j << 3)) & 0xFF);
+            mbedtls_printf("%02X", (int)((X->p[i] >> (j << 3)) & 0xFF));
         if (k % 2)
             mbedtls_printf("\n");
     }
@@ -128,7 +130,7 @@ do{ \
  */
 int main(int argc, char * argv[])
 {
-    int mode, n, flag, ret = 0;
+    int mode, n, ret = 0;
     
     const char *indiv_data = "created by C";    
     FILE *fin = NULL, *fout = NULL;
@@ -249,7 +251,7 @@ int main(int argc, char * argv[])
 #ifdef DEBUG_DECRYPT
                 if (mbedtls_mpi_read_binary(&T, ibuf, n) != 0)
                     fprintf(stderr, "%d error occured\n", __LINE__);
-                printMPI("en fread T: ", &T);
+                mbedtls_mpi_print("en fread T: ", &T);
 #endif
                 //注意！这里输入和输出不能使用同一个缓冲
                 if ((ret = mbedtls_rsa_pkcs1_encrypt(&rsa_ctx, mbedtls_ctr_drbg_random, 
@@ -258,13 +260,13 @@ int main(int argc, char * argv[])
             }
             if (fwrite(obuf, 1, KEY_LEN, fout) != KEY_LEN)
             {
-                mbedtls_fprintf(stderr, "fwrite(%d bytes) failed\n", rsa_ctx.len);
+                mbedtls_fprintf(stderr, "fwrite(%lu bytes) failed\n", rsa_ctx.len);
                 goto cleanup;
             }
 #ifdef DEBUG_ENCRYPT
             if (mbedtls_mpi_read_binary(&T, obuf, rsa_ctx.len) != 0)
                 fprintf(stderr, "%d error occured\n", __LINE__);
-            printMPI("fwrite T: ", &T);
+            mbedtls_mpi_print("fwrite T: ", &T);
 #endif
         }
     }
@@ -286,7 +288,7 @@ int main(int argc, char * argv[])
 #ifdef DEBUG_ENCRYPT
             if (mbedtls_mpi_read_binary(&T, ibuf, rsa_ctx.len) != 0)
                 fprintf(stderr, "%d error occured\n", __LINE__);
-            printMPI("fread T: ", &T);
+            mbedtls_mpi_print("fread T: ", &T);
 #endif
             //未到文件末尾
             if (offset + KEY_LEN != filesize)
@@ -312,7 +314,7 @@ int main(int argc, char * argv[])
 #ifdef DEBUG_DECRYPT
                 if (mbedtls_mpi_read_binary(&T, obuf, n) != 0)
                     fprintf(stderr, "%d error occured\n", __LINE__);
-                printMPI("de fwrite T: ", &T);
+                mbedtls_mpi_print("de fwrite T: ", &T);
 #endif
             }
         }

@@ -67,7 +67,7 @@ static const char strT[] = {
     数组下标    0                   1                   2                   3
     数组元素    [AE22925474705F39]  [256567336059E52C] [586E69184AF4A31E] [21C2645FD1DC]
  */
-void print(char * desc, mbedtls_mpi * X)
+void mbedtls_mpi_print(char * desc, mbedtls_mpi * X)
 {
     int i, j, k, index = X->n - 1, tlen = sizeof(mbedtls_mpi_uint);
 
@@ -79,7 +79,7 @@ void print(char * desc, mbedtls_mpi * X)
     for (i = index, k = 0; i >= 0; i--, k++)
     {
         for (j = tlen - 1; j >= 0; j--)
-            mbedtls_printf("%02X", (X->p[i] >> (j << 3)) & 0xFF);
+            mbedtls_printf("%02X", (int)((X->p[i] >> (j << 3)) & 0xFF));
         if (k % 2)
             mbedtls_printf("\n");
     }
@@ -87,8 +87,11 @@ void print(char * desc, mbedtls_mpi * X)
         mbedtls_printf("\n");
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
+    
     int ret = 0;
     mbedtls_mpi A, E, N, P, Q, R, S, T;
     mbedtls_mpi X, Y;
@@ -115,14 +118,14 @@ int main(int argc, char * argv[])
         goto cleanup;
     if ((ret = mbedtls_mpi_read_string(&T, 16, strT)) != 0)
         goto cleanup;
-    print("A: ", &A);
-    print("E: ", &E);
-    print("N: ", &N);
+    mbedtls_mpi_print("A: ", &A);
+    mbedtls_mpi_print("E: ", &E);
+    mbedtls_mpi_print("N: ", &N);
     //基线乘法运算 X为积
     if ((ret = mbedtls_mpi_mul_mpi(&X, &A, &N)) != 0)
         goto cleanup;
-    print("P: ", &P);
-    print("A * N: ", &X);
+    mbedtls_mpi_print("P: ", &P);
+    mbedtls_mpi_print("A * N: ", &X);
     if ((ret = mbedtls_mpi_cmp_mpi(&X, &P)) != 0)
         goto cleanup;
     //除法运算 X为商 Y为余 A为被除数 N为除数
@@ -133,24 +136,24 @@ int main(int argc, char * argv[])
         ret = 1;
         goto cleanup;
     }
-    print("A / N: ", &X);
-    print("Q: ", &Q);
-    print("A % N: ", &Y);
-    print("R: ", &R);
+    mbedtls_mpi_print("A / N: ", &X);
+    mbedtls_mpi_print("Q: ", &Q);
+    mbedtls_mpi_print("A % N: ", &Y);
+    mbedtls_mpi_print("R: ", &R);
     //模幂运算 X = A^E mod N
     if ((ret = mbedtls_mpi_exp_mod(&X, &A, &E, &N, NULL)) != 0)
         goto cleanup;
     if ((ret = mbedtls_mpi_cmp_mpi(&X, &S)) != 0)
         goto cleanup;
-    print("A^E mod N: ", &X);
-    print("S: ", &S);
+    mbedtls_mpi_print("A^E mod N: ", &X);
+    mbedtls_mpi_print("S: ", &S);
     //模的逆运算 X = A^-1 mod N
     if ((ret = mbedtls_mpi_inv_mod(&X, &A, &N)) != 0)
         goto cleanup;
     if ((ret = mbedtls_mpi_cmp_mpi(&X, &T)) != 0)
         goto cleanup;
-    print("A^-1 mod N: ", &X);
-    print("T: ", &T);
+    mbedtls_mpi_print("A^-1 mod N: ", &X);
+    mbedtls_mpi_print("T: ", &T);
 
 cleanup:
     mbedtls_printf("ret (%08X)\n", ret);

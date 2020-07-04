@@ -15,7 +15,7 @@ do{ \
     goto cleanup;   \
 }while(0);
 
-//CA µÄ RSA Ö¤Êé
+//CA çš„ RSA è¯ä¹¦
 #define CA_CRT_RSA_SHA1                                            \
 "-----BEGIN CERTIFICATE-----\r\n"                                       \
 "MIIDhzCCAm+gAwIBAgIBADANBgkqhkiG9w0BAQUFADA7MQswCQYDVQQGEwJOTDER\r\n"  \
@@ -38,7 +38,7 @@ do{ \
 "m/UTSLBNFNHesiTZeH31NcxYGdHSme9Nc/gfidRa0FLOCfWxRlFqAI47zG9jAQCZ\r\n"  \
 "7Z2mCGDNMhjQc+BYcdnl0lPXjdDK6V0qCg1dVewhUBcW5gZKzV7e9+DpVA==\r\n"      \
 "-----END CERTIFICATE-----\r\n"
-//·şÎñÆ÷µÄ RSA Ö¤Êé
+//æœåŠ¡å™¨çš„ RSA è¯ä¹¦
 #define SRV_CRT_RSA_SHA1                                        \
 "-----BEGIN CERTIFICATE-----\r\n"                                       \
 "MIIDNzCCAh+gAwIBAgIBAjANBgkqhkiG9w0BAQUFADA7MQswCQYDVQQGEwJOTDER\r\n"  \
@@ -60,7 +60,7 @@ do{ \
 "RRQfaD8neM9c1S/iJ/amTVqJxA1KOdOS5780WhPfSArA+g4qAmSjelc3p4wWpha8\r\n"  \
 "zhuYwjVuX6JHG0c=\r\n"                                                  \
 "-----END CERTIFICATE-----\r\n";
-//·şÎñÆ÷µÄ RSA Ë½Ô¿
+//æœåŠ¡å™¨çš„ RSA ç§é’¥
 #define SRV_PVK_RSA                                                     \
 "-----BEGIN RSA PRIVATE KEY-----\r\n"                                   \
 "MIIEpAIBAAKCAQEAwU2j3efNHdEE10lyuJmsDnjkOjxKzzoTFtBa5M2jAIin7h5r\r\n"  \
@@ -91,25 +91,28 @@ do{ \
 "-----END RSA PRIVATE KEY-----\r\n"
 
 /**
-    ¹¦ÄÜ£º
-        ½âÎö RSA Ö¤Êé
-    ËµÃ÷£º
-        1.¶ÔÖ¤ÊéÄÚÈİµÄÑ§Ï°¿ÉÒÔ²Î¿¼ struct mbedtls_x509_crt ½á¹¹(Î»ÓÚx509_crt.hÖĞ£©£»
+    åŠŸèƒ½ï¼š
+        è§£æ RSA è¯ä¹¦
+    è¯´æ˜ï¼š
+        1.å¯¹è¯ä¹¦å†…å®¹çš„å­¦ä¹ å¯ä»¥å‚è€ƒ struct mbedtls_x509_crt ç»“æ„(ä½äºx509_crt.hä¸­ï¼‰ï¼›
         2.
  */
 int main(int argc, char *argv[])
 {
-    int ret = 0;
+    (void)argc;
+    (void)argv;
     
+    int ret = 0;
+/*
     mbedtls_net_context lfd_ctx, cfd_ctx;
     const char *indiv = "Create by C";
     
-    mbedtls
+    // mbedtls
     
 cleanup:
     mbedtls_fprintf(stderr, "ret (%08X)\n", ret);
     mbedtls_x509_crt_free(&cacert_ctx);
     mbedtls_x509_crt_free(&clicert_ctx);
-    
+*/   
     return ret;
 }

@@ -17,7 +17,7 @@
     "\n    <random nbits>: do not set too much(<1024) while running in low performance cpu\n" \
     "\n"
 
-void printMPI(char * desc, mbedtls_mpi * X)
+void mbedtls_mpi_print(char * desc, mbedtls_mpi * X)
 {
     int i, j, k, index = X->n - 1, tlen = sizeof(mbedtls_mpi_uint);
 
@@ -29,7 +29,7 @@ void printMPI(char * desc, mbedtls_mpi * X)
     for (i = index, k = 0; i >= 0; i--, k++)
     {
         for (j = tlen - 1; j >= 0; j--)
-            mbedtls_printf("%02X", (X->p[i] >> (j << 3)) & 0xFF);
+            mbedtls_printf("%02X", (int)((X->p[i] >> (j << 3)) & 0xFF));
         if (k % 2)
             mbedtls_printf("\n");
     }
@@ -106,9 +106,9 @@ int main(int argc, char *argv[])
         goto cleanup;
     mbedtls_printf(" ok\n\n");
     //每次执行的打印都不一样
-    printMPI("P: ", &P);
-    printMPI("Q: ", &Q);
-    printMPI("G: ", &G);
+    mbedtls_mpi_print("P: ", &P);
+    mbedtls_mpi_print("Q: ", &Q);
+    mbedtls_mpi_print("G: ", &G);
 cleanup:
     mbedtls_printf("ret (0x%08X)\n", ret);
     mbedtls_mpi_free(&G); mbedtls_mpi_free(&P); mbedtls_mpi_free(&Q);

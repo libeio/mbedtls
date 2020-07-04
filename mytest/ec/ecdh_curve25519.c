@@ -38,7 +38,7 @@ void mbedtls_mpi_vprint(mbedtls_mpi * X, const char * format, ...)
     for (i = index, k = 0; i >= 0; i--, k++)
     {
         for (j = tlen - 1; j >= 0; j--)
-            mbedtls_printf("%02X", (X->p[i] >> (j << 3)) & 0xFF);
+            mbedtls_printf("%02X", (int)((X->p[i] >> (j << 3)) & 0xFF));
         if (k % 2)
             mbedtls_printf("\n");
     }
@@ -57,6 +57,9 @@ void mbedtls_ecdh_print_keypair(mbedtls_ecdh_context *ed)
 
 int main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
+    
     int ret = 0;
     const char *indiv_data = "Created by C";
     unsigned char cli_to_srv[32], srv_to_cli[32];
@@ -70,7 +73,7 @@ int main(int argc, char *argv[])
     mbedtls_ctr_drbg_init(&ctr_drbg);
     mbedtls_entropy_init(&entropy);
     //随机数种子
-    if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, indiv_data, strlen(indiv_data))) != 0)
+    if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const unsigned char*)indiv_data, strlen(indiv_data))) != 0)
         mbedtls_err(ret);
     //客户端：指定椭圆曲线
     if ((ret = mbedtls_ecp_group_load(&ctx_cli.grp, MBEDTLS_ECP_DP_CURVE25519)) != 0)

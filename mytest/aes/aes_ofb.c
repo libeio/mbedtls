@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "mbedtls/config.h"
 #include "mbedtls/aes.h"
@@ -14,7 +16,7 @@
     "\n    <keybits>: select one from [ 128, 192, 256]\n" \
     "\n    input file and output file should not use the same name\n" \
     "\n"
-const static char random_[] = {
+const char random_[] = {
     "KEY9as5NidWWVbZWQ3lud6qEyEB64IAp"
     "IVq3GXR7+5hkbdgRiDkt/rlD7WPEtdwE"
 };
@@ -26,12 +28,12 @@ const static char random_[] = {
  */
 int main(int argc, char * argv[])
 {
-    int i, n, k, mode, ret = 0;
+    int i, n, mode, ret = 0;
     char lastn;
     unsigned char key[32];
     unsigned char buf[16];
     unsigned char iv[16];
-    size_t keybits, ilen;
+    size_t keybits;
     off_t filesize, offset;
     mbedtls_aes_context aes_ctx;
     FILE *fin = NULL, *fout = NULL;
@@ -93,7 +95,6 @@ int main(int argc, char * argv[])
     //设置加密密钥
     if((ret = mbedtls_aes_setkey_enc(&aes_ctx, key, keybits)) != 0)
         goto exit;
-    k = 0;
     //加密
     if (mode == MBEDTLS_AES_ENCRYPT)
     {
@@ -101,7 +102,7 @@ int main(int argc, char * argv[])
         memcpy(iv, random_ + 32, 16);
         //文件长度与16之模，与iv混合后写入文件首部
         lastn = (char)(filesize & 0x0F);
-        iv[15] = (unsigned char)(iv[15] & 0xF0 | lastn);
+        iv[15] = (unsigned char)((iv[15] & 0xF0) | lastn);
         if(fwrite(iv, 1, 16, fout) != 16)
         {
             mbedtls_fprintf(stderr, "fwrite(%d bytes) failed\n", 16);
@@ -176,7 +177,7 @@ int main(int argc, char * argv[])
 exit:
     if(fin) fclose(fin);
     if(fout) fclose(fout);
-    for( i = 0; i < (unsigned int) argc; i++ )
+    for( i = 0; i < argc; i++ )
         memset( argv[i], 0, strlen( argv[i] ) );
     mbedtls_aes_free(&aes_ctx);
     memset(key, 0, sizeof(key));

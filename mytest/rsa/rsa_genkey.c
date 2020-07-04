@@ -7,6 +7,7 @@
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/bignum.h"
 #include "mbedtls/rsa.h"
+#include "mbedtls/error.h"
 
 #define mbedtls_printf          printf
 #define mbedtls_fprintf         fprintf
@@ -30,7 +31,7 @@ do{ \
     "\n    <pbk filename> <pvk filename>: write the core or crt parameters of keypair\n" \
     "\n"
 
-void mbedtls_print_mpi(char * desc, mbedtls_mpi * X)
+void mbedtls_mpi_print(char * desc, mbedtls_mpi * X)
 {
     int i, j, k, index = X->n - 1, tlen = sizeof(mbedtls_mpi_uint);
 
@@ -42,7 +43,7 @@ void mbedtls_print_mpi(char * desc, mbedtls_mpi * X)
     for (i = index, k = 0; i >= 0; i--, k++)
     {
         for (j = tlen - 1; j >= 0; j--)
-            mbedtls_printf("%02X", (X->p[i] >> (j << 3)) & 0xFF);
+            mbedtls_printf("%02X", (int)((X->p[i] >> (j << 3)) & 0xFF));
         if (k % 2)
             mbedtls_printf("\n");
     }
@@ -93,18 +94,18 @@ int main(int argc, char *argv[])
                             (const unsigned char *)indiv_data, strlen(indiv_data))) != 0)
         mbedtls_err(ret);
 #ifdef DEBUG_RSA_KEYPAIR
-    mbedtls_print_mpi("Before N: ", &rsa_ctx.N);
-    mbedtls_print_mpi("Before D: ", &rsa_ctx.D);
-    mbedtls_print_mpi("Before E: ", &rsa_ctx.E);
+    mbedtls_mpi_print("Before N: ", &rsa_ctx.N);
+    mbedtls_mpi_print("Before D: ", &rsa_ctx.D);
+    mbedtls_mpi_print("Before E: ", &rsa_ctx.E);
 #endif
     //生成rsa密钥对
     if ((ret = mbedtls_rsa_gen_key(&rsa_ctx, mbedtls_ctr_drbg_random, &ctr_drbg, KEY_SIZE, 
                                     EXPONENT)) != 0)
         mbedtls_err(ret);
 #ifdef DEBUG_RSA_KEYPAIR
-    mbedtls_print_mpi("After N: ", &rsa_ctx.N);
-    mbedtls_print_mpi("After D: ", &rsa_ctx.D);
-    mbedtls_print_mpi("After E: ", &rsa_ctx.E);
+    mbedtls_mpi_print("After N: ", &rsa_ctx.N);
+    mbedtls_mpi_print("After D: ", &rsa_ctx.D);
+    mbedtls_mpi_print("After E: ", &rsa_ctx.E);
 #endif
     //将核心参数和剩余参数导出
     if ((ret = mbedtls_rsa_export(&rsa_ctx, &N, &P, &Q, &D, &E)) != 0 ||

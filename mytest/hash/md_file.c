@@ -4,6 +4,7 @@
 
 #include "mbedtls/config.h"
 #include "mbedtls/md.h"
+#include "mbedtls/platform_util.h"
 
 #define mbedtls_printf          printf
 #define mbedtls_fprintf         fprintf
@@ -20,9 +21,7 @@ int main(int argc, char * argv[])
 {   
     int i, n, siglen, ret = 0;
     FILE * fin;
-    size_t blen, keylen;
     unsigned char buf[1024];
-    unsigned char key[512];
     unsigned char digest[128];
     const mbedtls_md_info_t * md_info;
     mbedtls_md_context_t md_ctx;

@@ -6,6 +6,7 @@
 #include "mbedtls/config.h"
 #include "mbedtls/error.h"
 #include "mbedtls/bignum.h"
+#include "mbedtls/sha256.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/ecp.h"
@@ -40,7 +41,7 @@ void mbedtls_mpi_vprint(mbedtls_mpi * X, const char * format, ...)
     for (i = index, k = 0; i >= 0; i--, k++)
     {
         for (j = tlen - 1; j >= 0; j--)
-            mbedtls_printf("%02X", (X->p[i] >> (j << 3)) & 0xFF);
+            mbedtls_printf("%02X", (int)((X->p[i] >> (j << 3)) & 0xFF));
         if (k % 2)
             mbedtls_printf("\n");
     }
@@ -50,9 +51,9 @@ void mbedtls_mpi_vprint(mbedtls_mpi * X, const char * format, ...)
 
 void mbedtls_ecdsa_print_keypair(mbedtls_ecdsa_context *key)
 {
-    int i, ret = 0;
+    int ret = 0;
     unsigned char buf[300];
-    size_t len, plen;
+    size_t len;
     
     if ((ret = mbedtls_ecp_point_write_binary(&key->grp, &key->Q, MBEDTLS_ECP_PF_UNCOMPRESSED, &len, buf, sizeof buf)) != 0)
         mbedtls_err(ret);
@@ -63,6 +64,8 @@ void mbedtls_ecdsa_print_keypair(mbedtls_ecdsa_context *key)
     mbedtls_mpi_vprint(&key->Q.X, "public.Q.X\n");
     mbedtls_mpi_vprint(&key->Q.Y, "public.Q.Y\n");
 #ifdef ALTERNATIVE_PRINT_PUBKEY
+    int i;
+    size_t plen;
     //也可以使用下列打印公钥
     plen = mbedtls_mpi_size(&key->grp.P);
     if (plen * 2 + 1 != len)
@@ -89,6 +92,8 @@ cleanup:
  */
 int main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
     int i, ret = 0;
     
     size_t sig_len;
@@ -110,7 +115,7 @@ int main(int argc, char *argv[])
     mbedtls_ctr_drbg_init(&ctr_drbg);
 
     //随机数种子
-    if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, indiv_data, strlen(indiv_data))) != 0)
+    if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const unsigned char*)indiv_data, strlen(indiv_data))) != 0)
         mbedtls_err(ret);
     //生成签名密钥对
     if ((ret = mbedtls_ecdsa_genkey(&ctx_sign, MBEDTLS_ECP_DP_SECP521R1, mbedtls_ctr_drbg_random, &ctr_drbg)) != 0)

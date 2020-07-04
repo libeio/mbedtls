@@ -1,44 +1,22 @@
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
 
-// #include "mbedtls/config.h"
-// #include "mbedtls/havege.h"
-
-// #define mbedtls_printf          printf
-// #define mbedtls_fprintf          fprintf
-
-#if !defined(MBEDTLS_CONFIG_FILE)
 #include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
-
-#if defined(MBEDTLS_PLATFORM_C)
-#include "mbedtls/platform.h"
-#else
+#include "mbedtls/havege.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+
 #define mbedtls_fprintf         fprintf
 #define mbedtls_printf          printf
-#define MBEDTLS_EXIT_SUCCESS    EXIT_SUCCESS
-#define MBEDTLS_EXIT_FAILURE    EXIT_FAILURE
-#endif /* MBEDTLS_PLATFORM_C */
-
-#if defined(MBEDTLS_HAVEGE_C) && defined(MBEDTLS_FS_IO)
-#include "mbedtls/havege.h"
-
-#include <stdio.h>
-#include <time.h>
-#endif
 
 /**
  使用基于硬件的可易变性熵源收集扩展器（havege）生成伪随机数
  havege不适用于虚拟机环境，依赖于时间和处理器特征
  缺省情况下没有配置havege，故暂时无法编译成功
  */
-int main( int argc, char *argv[] )
+int main()
 {
+    int ret = 0;
+/*
     int i, k, ret = 0;
     FILE *f;
     time_t t;
@@ -79,5 +57,6 @@ exit:
     mbedtls_printf("ret (0x%08X)\n", ret);
     mbedtls_havege_free( &hs );
     fclose( f );
+*/
     return ret;
 }

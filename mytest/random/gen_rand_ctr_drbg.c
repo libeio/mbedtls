@@ -31,7 +31,7 @@ static const unsigned char entropy_source[96] =
       0x93, 0x92, 0xcf, 0xc5, 0x23, 0x12, 0xd5, 0x56,
       0x2c, 0x4a, 0x6e, 0xff, 0xdc, 0x10, 0xd0, 0x68 };
 //个性化参数
-static const unsigned char nonce_pers[16] =
+const unsigned char nonce_pers[16] =
     { 0xd2, 0x54, 0xfc, 0xff, 0x02, 0x1e, 0x69, 0xd2,
       0x29, 0xc9, 0xcf, 0xad, 0x85, 0xfa, 0x48, 0x6c };
 static size_t test_offset;
@@ -56,7 +56,10 @@ static void print(unsigned char *buf, int blen)
 
 int main(int argc, char * argv[])
 {
-    int i, ret = 0;
+    (void)argc;
+    (void)argv;
+
+    int ret = 0;
     
     mbedtls_ctr_drbg_context ctx;
     unsigned char buf[RANDOM_SIZE];

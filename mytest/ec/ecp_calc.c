@@ -45,7 +45,7 @@ void mbedtls_mpi_vprint(mbedtls_mpi * X, const char * format, ...)
     for (i = index, k = 0; i >= 0; i--, k++)
     {
         for (j = tlen - 1; j >= 0; j--)
-            mbedtls_printf("%02X", (X->p[i] >> (j << 3)) & 0xFF);
+            mbedtls_printf("%02X", (int)((X->p[i] >> (j << 3)) & 0xFF));
         if (k % 2)
             mbedtls_printf("\n");
     }
@@ -60,7 +60,6 @@ int main()
 {
     int ret = 0;
     size_t i;
-    const char *curve_name;
     
     mbedtls_ecp_group grp;
     mbedtls_ecp_point R, P;

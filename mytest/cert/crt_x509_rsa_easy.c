@@ -3,6 +3,7 @@
 
 #include "mbedtls/x509.h"
 #include "mbedtls/x509_crt.h"
+#include "mbedtls/error.h"
 
 #define mbedtls_printf       printf
 #define mbedtls_fprintf      fprintf
@@ -75,6 +76,9 @@ const size_t mbedtls_test_cli_crt_rsa_len = sizeof( mbedtls_test_cli_crt_rsa );
  */
 int main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
+    
     int ret = 0;
     uint32_t flags;
     mbedtls_x509_crt cacert_ctx;

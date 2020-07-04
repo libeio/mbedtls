@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "mbedtls/config.h"
 #include "mbedtls/aes.h"
@@ -14,7 +16,7 @@
     "\n    <keybits>: select one from [ 128, 192, 256]\n" \
     "\n    input file and output file should not use the same name\n" \
     "\n"
-const static char random_[] = {
+const char random_[] = {
     "KEY9as5NidWWVbZWQ3lud6qEyEB64IAp"
     "IVq3GXR7+5hkbdgRiDkt/rlD7WPEtdwE"
     "NONCE9UmBIPZ3kCH7x+9NpJZU0BlulpH"
@@ -50,7 +52,7 @@ int main(int argc, char * argv[])
     unsigned char buf[16];
     unsigned char nonctr[16];
     unsigned char stmblk[16];
-    size_t keybits, ilen;
+    size_t keybits;
     off_t filesize, offset;
     mbedtls_aes_context aes_ctx;
     FILE *fin = NULL, *fout = NULL;
@@ -120,7 +122,7 @@ int main(int argc, char * argv[])
         memcpy(nonctr, random_ + 64, 8);
         //文件长度与16之模，其值存入nonctr下标为7的位置，这里只保存nonctr的nonce部分
         lastn = (unsigned char)(filesize & 0x0F);
-        nonctr[7] = (unsigned char)(nonctr[7] & 0xF0 | lastn);
+        nonctr[7] = (unsigned char)((nonctr[7] & 0xF0) | lastn);
         if(fwrite(nonctr, 1, 8, fout) != 8)
         {
             mbedtls_fprintf(stderr, "fwrite(%d bytes) failed\n", 8);
@@ -200,7 +202,7 @@ int main(int argc, char * argv[])
 exit:
     if(fin) fclose(fin);
     if(fout) fclose(fout);
-    for( i = 0; i < (unsigned int) argc; i++ )
+    for( i = 0; i < argc; i++ )
         memset( argv[i], 0, strlen( argv[i] ) );
     mbedtls_aes_free(&aes_ctx);
     memset(key, 0, sizeof(key));

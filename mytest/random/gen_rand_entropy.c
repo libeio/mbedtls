@@ -55,7 +55,7 @@
         for(j = 0; j < MBEDTLS_ENTROPY_BLOCK_SIZE; j++)
         {
             mbedtls_fprintf(stdout, "0x%02X ", buf[j]);
-            if ((j & 0x0F ^ 0x0F) == 0)     //注意，比较运算符比位运算符的优先级要高！
+            if (((j & 0x0F) ^ 0x0F) == 0)     //注意，比较运算符比位运算符的优先级要高！
                 mbedtls_fprintf(stdout, "\n");
         }
         

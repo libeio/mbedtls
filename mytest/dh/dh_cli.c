@@ -7,6 +7,7 @@
 #include "mbedtls/config.h"
 #include "mbedtls/error.h"
 #include "mbedtls/bignum.h"
+#include "mbedtls/sha256.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/net_sockets.h"
@@ -45,7 +46,7 @@ void mbedtls_mpi_vprint(mbedtls_mpi * X, const char * format, ...)
     for (i = index, k = 0; i >= 0; i--, k++)
     {
         for (j = tlen - 1; j >= 0; j--)
-            mbedtls_printf("%02X", (X->p[i] >> (j << 3)) & 0xFF);
+            mbedtls_printf("%02X", (int)((X->p[i] >> (j << 3)) & 0xFF));
         if (k % 2)
             mbedtls_printf("\n");
     }
@@ -105,7 +106,7 @@ int main(int argc, char *argv[])
     mbedtls_dhm_init(&dhm_ctx);
     mbedtls_net_init(&cfd_ctx);
     //设置熵源为伪随机数发生器种子
-    if ((mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, indiv_data, strlen(indiv_data))) != 0)
+    if ((mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const unsigned char*)indiv_data, strlen(indiv_data))) != 0)
         mbedtls_err(ret);
     //获取服务端公钥
     if ((ret = mbedtls_mpi_read_string(&rsa_ctx.N, 16, rsaN)) != 0)
@@ -157,14 +158,14 @@ int main(int argc, char *argv[])
     p += 2;     //跳过长度判断
     if ((n = (size_t)(end - p)) != rsa_ctx.len)
     {
-        mbedtls_fprintf(stderr, "%d Invalid rsa signature size %d != %d\n", __LINE__, n, rsa_ctx.len);
+        mbedtls_fprintf(stderr, "%d Invalid rsa signature size %lu != %lu\n", __LINE__, n, rsa_ctx.len);
         goto cleanup;
     }
     //重新计算SKE数据哈希，并验签。通过后才会给服务端发送自己的SKE
     if ((md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256)) == NULL)
         mbedtls_err(ret);
     int hsize = mbedtls_md_get_size(md_info);
-    if ((ret = mbedtls_sha256_ret(buf + 2, (int)(p - 2 - (buf + 2)), hbuf)) !=0 )
+    if ((ret = mbedtls_sha256_ret(buf + 2, (int)(p - 2 - (buf + 2)), hbuf, 0)) !=0 )
         mbedtls_err(ret);
     if ((ret = mbedtls_rsa_pkcs1_verify(&rsa_ctx, mbedtls_ctr_drbg_random, &ctr_drbg, MBEDTLS_RSA_PUBLIC, mbedtls_md_get_type(md_info), hsize, hbuf, p)) != 0)
         mbedtls_err(ret);

@@ -28,7 +28,9 @@
  事实上，上述函数位于 md5.c 中
  */
 int main(int argc, char * argv[])
-{   
+{
+    (void)argc;
+
     int i, siglen, ret = 0;
     size_t ilen, keylen;
     unsigned char input[1024];
@@ -44,11 +46,11 @@ int main(int argc, char * argv[])
         return -1;
     }
     
-    argv[2] ? strcpy(key, argv[2]) : strcpy(key, "HYDn2XDKdV0Om8M8EjuL95T4L4AHpulV");
-    keylen = strlen(key);
+    argv[2] ? memcpy(key, argv[2], strlen(argv[2])) : memcpy(key, "HYDn2XDKdV0Om8M8EjuL95T4L4AHpulV", strlen("HYDn2XDKdV0Om8M8EjuL95T4L4AHpulV"));
+    keylen = strlen((char*)key);
     
-    argv[3] ? strcpy(input, argv[3]) : strcpy(input, "Hello World!");
-    ilen = strlen(input);
+    argv[3] ? memcpy(input, argv[3], strlen(argv[3])) : memcpy(input, "Hello World!", strlen("Hello World!"));
+    ilen = strlen((char*)input);
     
     mbedtls_md_init(&md_ctx);
     

@@ -29,6 +29,8 @@
 
 int main(int argc, char * argv[])
 {   
+    (void)argc;
+    
     int i, siglen, ret = 0; /* 后面会涉及与i的比较，为了避免强制这里将siglen定义为int类型 */
     size_t ilen;
     unsigned char input[1024];
@@ -43,9 +45,9 @@ int main(int argc, char * argv[])
         return -1;
     }
     
-    argv[2] ? strcpy(input, argv[2]) : strcpy(input, "Hello World!");
+    argv[2] ? memcpy(input, argv[2], strlen(argv[2])) : memcpy(input, "Hello World!", strlen("Hello World!"));
     
-    ilen = strlen(input);
+    ilen = strlen((char*)input);
     
     mbedtls_md_init(&md_ctx);
     

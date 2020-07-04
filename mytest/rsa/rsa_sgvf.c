@@ -184,12 +184,12 @@ int main(int argc, char * argv[])
                                     mbedtls_md_get_type(md_info), hsize, hbuf, sbuf)) != 0)
             mbedtls_err(ret);
         //格式化写入文件
-        for( i = 0; i < rsa_ctx.len; i++ )
+        for( i = 0; i < (int)rsa_ctx.len; i++ )
             mbedtls_fprintf(f, "%02X%s", sbuf[i], (i + 1) % 16 == 0 ? "\r\n" : " ");
 #ifdef DEBUG_SIGN
         //打印签名
         mbedtls_printf("%s pkcs1_v15 sign:\n", path);
-        for(i = 0; i < rsa_ctx.len; i++)
+        for(i = 0; i < (int)rsa_ctx.len; i++)
         {
             mbedtls_fprintf(stdout, "0x%02X ", sbuf[i]);
             if ((i & 0x0F ^ 0x0F) == 0)
@@ -202,7 +202,7 @@ int main(int argc, char * argv[])
     {
         //格式化读取文件
         i = 0;
-        while(fscanf(f, "%02X", &c) > 0 && i < rsa_ctx.len)
+        while(fscanf(f, "%02X", &c) > 0 && i < (int)rsa_ctx.len)
             sbuf[i++] = (unsigned char)c;
 #ifdef DEBUG_VERIFY
         for (i = 0; i < rsa_ctx.len; i++)

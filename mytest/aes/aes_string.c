@@ -13,18 +13,20 @@
     "\n    <keybits>: Supported aes key bits length: 128 192 256\n" \
     "\n    [string]: optional\n" \
     "\n"
-const static char random_[] = {
+const char random_[] = {
     "KEY9as5NidWWVbZWQ3lud6qEyEB64IAp"
 };
 
 //此加密未使用任何模式，只作测试或流程参考，不能用于实际
 int main(int argc, char * argv[])
 {
+    (void)argc;
+    
     int i, ret = 0;
     unsigned char key[32];      //虽然密钥位数以二进制位数为准，但在实际使用中均会以字符串表示
     unsigned char plain[16];    //一次性最多只能加密16位
     unsigned char cipher[16];
-    size_t keybits, ilen;
+    size_t keybits;
     
     keybits = argv[1] ? atoi(argv[1]) : 256;        //如果这样可能会运行失败  ./程序名
     if (!(keybits == 128 || keybits == 192 || keybits == 256))
@@ -32,9 +34,9 @@ int main(int argc, char * argv[])
         mbedtls_printf(USAGE);
         return -1;
     }
-    strncpy(key, random_, keybits / 8);
+    memcpy(key, random_, keybits / 8);
     
-    argv[2] ? strcpy(plain, argv[2]) : strcpy(plain, "Hello World!");
+    argv[2] ? memcpy(plain, argv[2], strlen(argv[2])) : memcpy(plain, "Hello World!", strlen("Hello World!"));
     
     mbedtls_aes_context aes_ctx;
     

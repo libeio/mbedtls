@@ -4,6 +4,7 @@
 
 #include "mbedtls/config.h"
 #include "mbedtls/md.h"
+#include "mbedtls/platform_util.h"
 
 #define mbedtls_printf          printf
 #define mbedtls_fprintf         fprintf
@@ -20,8 +21,9 @@
  */
 int main(int argc, char * argv[])
 {   
+    (void)argc;
     int i, n, siglen, ret = 0;
-    size_t blen, keylen;
+    size_t keylen;
     FILE * fin;
     unsigned char buf[1024];
     unsigned char key[512];
@@ -42,8 +44,8 @@ int main(int argc, char * argv[])
         return MBEDTLS_ERR_MD_FILE_IO_ERROR;
     }
     
-    argv[3] ? strcpy(key, argv[3]) : strcpy(key, "HYDn2XDKdV0Om8M8EjuL95T4L4AHpulV");
-    keylen = strlen(key);
+    argv[3] ? memcpy(key, argv[3], strlen(argv[3])) : memcpy(key, "HYDn2XDKdV0Om8M8EjuL95T4L4AHpulV", strlen("HYDn2XDKdV0Om8M8EjuL95T4L4AHpulV"));
+    keylen = strlen((char*)key);
     
     mbedtls_md_init(&md_ctx);
     

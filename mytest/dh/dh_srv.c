@@ -7,6 +7,7 @@
 #include "mbedtls/config.h"
 #include "mbedtls/error.h"
 #include "mbedtls/bignum.h"
+#include "mbedtls/sha256.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/net_sockets.h"
@@ -45,7 +46,7 @@ void mbedtls_mpi_vprint(mbedtls_mpi * X, const char * format, ...)
     for (i = index, k = 0; i >= 0; i--, k++)
     {
         for (j = tlen - 1; j >= 0; j--)
-            mbedtls_printf("%02X", (X->p[i] >> (j << 3)) & 0xFF);
+            mbedtls_printf("%02X", (int)((X->p[i] >> (j << 3)) & 0xFF));
         if (k % 2)
             mbedtls_printf("\n");
     }
@@ -113,7 +114,6 @@ static const char dhmG[] = {
 int main(int argc, char *argv[])
 {
     int i, ret = 0;
-    FILE *f;
     unsigned char buf[BUF_SIZE];    //ske + sig，确保足够大 BUF_SIZE > ske长度 + rsa密钥长度 + 其他一些小东西
     unsigned char hbuf[128];
     size_t skelen, len;
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
     if ((md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256)) == NULL)
         mbedtls_err(ret);
     int hsize = mbedtls_md_get_size(md_info);
-    if ((ret = mbedtls_sha256_ret(buf + 2, skelen, hbuf)) !=0 )
+    if ((ret = mbedtls_sha256_ret(buf + 2, skelen, hbuf, 0)) !=0 )
         mbedtls_err(ret);
     //紧随SKE，存储签名长度 网络字节序存储
     for (i = 0; i < 2; i++)
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
     for (i = 0; i < 2; i++)
         buf[i] = (unsigned char)((uint16_t)len >> ((2 - i - 1) << 3));
     //向客户端发送buf
-    if ((ret = mbedtls_net_send(&cfd_ctx, buf, len + 2)) != len + 2)
+    if ((ret = mbedtls_net_send(&cfd_ctx, buf, len + 2)) != (int)len + 2)
         mbedtls_err(ret);
     //获取客户端的GX作为自己的GY
     memset(buf, 0, BUF_SIZE);
