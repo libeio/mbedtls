@@ -308,18 +308,18 @@ int mbedtls_rsa_complete( mbedtls_rsa_context *ctx )
     n_missing  =              have_P &&  have_Q &&  have_D && have_E;
     pq_missing =   have_N && !have_P && !have_Q &&  have_D && have_E;
     d_missing  =              have_P &&  have_Q && !have_D && have_E;
-    is_pub     =   have_N && !have_P && !have_Q && !have_D && have_E;
+    is_pub     =   have_N && !have_P && !have_Q && !have_D && have_E;   // N, E两个参数可以演绎出公钥
 
     /* These three alternatives are mutually exclusive */
     is_priv = n_missing || pq_missing || d_missing;
 
-    if( !is_priv && !is_pub )
+    if( !is_priv && !is_pub )           //无法演绎，退出
         return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
 
     /*
      * Step 1: Deduce N if P, Q are provided.
      */
-
+    // N = P × Q
     if( !have_N && have_P && have_Q )
     {
         if( ( ret = mbedtls_mpi_mul_mpi( &ctx->N, &ctx->P,
@@ -335,7 +335,7 @@ int mbedtls_rsa_complete( mbedtls_rsa_context *ctx )
      * Step 2: Deduce and verify all remaining core parameters.
      */
 
-    if( pq_missing )
+    if( pq_missing )    //根据 N E D 演绎出大素数 P Q
     {
         ret = mbedtls_rsa_deduce_primes( &ctx->N, &ctx->E, &ctx->D,
                                          &ctx->P, &ctx->Q );
@@ -343,7 +343,7 @@ int mbedtls_rsa_complete( mbedtls_rsa_context *ctx )
             return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA + ret );
 
     }
-    else if( d_missing )
+    else if( d_missing )        //根据P Q E 演绎出私钥指数 D
     {
         if( ( ret = mbedtls_rsa_deduce_private_exponent( &ctx->P,
                                                          &ctx->Q,
@@ -360,7 +360,7 @@ int mbedtls_rsa_complete( mbedtls_rsa_context *ctx )
      */
 
 #if !defined(MBEDTLS_RSA_NO_CRT)
-    if( is_priv && ! ( have_DP && have_DQ && have_QP ) )
+    if( is_priv && ! ( have_DP && have_DQ && have_QP ) )    //根据P Q D演绎出 mbedtls_rsa_context 的DP DQ DP成员
     {
         ret = mbedtls_rsa_deduce_crt( &ctx->P,  &ctx->Q,  &ctx->D,
                                       &ctx->DP, &ctx->DQ, &ctx->QP );
@@ -372,10 +372,10 @@ int mbedtls_rsa_complete( mbedtls_rsa_context *ctx )
     /*
      * Step 3: Basic sanity checks
      */
-
+    //对私钥进行检查
     return( rsa_check_context( ctx, is_priv, 1 ) );
 }
-
+//大数以字符串形式导出
 int mbedtls_rsa_export_raw( const mbedtls_rsa_context *ctx,
                             unsigned char *N, size_t N_len,
                             unsigned char *P, size_t P_len,
@@ -388,7 +388,7 @@ int mbedtls_rsa_export_raw( const mbedtls_rsa_context *ctx,
     RSA_VALIDATE_RET( ctx != NULL );
 
     /* Check if key is private or public */
-    is_priv =
+    is_priv =   //利用P Q E 或 N D E 可以演绎出其余的数， P Q E或N D E均可以演绎出私钥，从私钥可以获取公钥
         mbedtls_mpi_cmp_int( &ctx->N, 0 ) != 0 &&
         mbedtls_mpi_cmp_int( &ctx->P, 0 ) != 0 &&
         mbedtls_mpi_cmp_int( &ctx->Q, 0 ) != 0 &&
@@ -398,12 +398,12 @@ int mbedtls_rsa_export_raw( const mbedtls_rsa_context *ctx,
     if( !is_priv )
     {
         /* If we're trying to export private parameters for a public key,
-         * something must be wrong. */
+         * something must be wrong. */  //P Q D可以演绎出公钥，但无法从公钥中获取私钥
         if( P != NULL || Q != NULL || D != NULL )
             return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
 
     }
-
+    //将大数写入buf中
     if( N != NULL )
         MBEDTLS_MPI_CHK( mbedtls_mpi_write_binary( &ctx->N, N, N_len ) );
 
@@ -423,7 +423,7 @@ cleanup:
 
     return( ret );
 }
-
+//大数导出
 int mbedtls_rsa_export( const mbedtls_rsa_context *ctx,
                         mbedtls_mpi *N, mbedtls_mpi *P, mbedtls_mpi *Q,
                         mbedtls_mpi *D, mbedtls_mpi *E )
@@ -468,7 +468,7 @@ int mbedtls_rsa_export( const mbedtls_rsa_context *ctx,
  * This must also be implemented if CRT is not used, for being able to
  * write DER encoded RSA keys. The helper function mbedtls_rsa_deduce_crt
  * can be used in this case.
- */
+ */     //导出参数 DP, DQ QP
 int mbedtls_rsa_export_crt( const mbedtls_rsa_context *ctx,
                             mbedtls_mpi *DP, mbedtls_mpi *DQ, mbedtls_mpi *QP )
 {
@@ -487,7 +487,7 @@ int mbedtls_rsa_export_crt( const mbedtls_rsa_context *ctx,
     if( !is_priv )
         return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
 
-#if !defined(MBEDTLS_RSA_NO_CRT)
+#if !defined(MBEDTLS_RSA_NO_CRT)    //如果使用CRT，直接导出
     /* Export all requested blinding parameters. */
     if( ( DP != NULL && ( ret = mbedtls_mpi_copy( DP, &ctx->DP ) ) != 0 ) ||
         ( DQ != NULL && ( ret = mbedtls_mpi_copy( DQ, &ctx->DQ ) ) != 0 ) ||
@@ -495,7 +495,7 @@ int mbedtls_rsa_export_crt( const mbedtls_rsa_context *ctx,
     {
         return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA + ret );
     }
-#else
+#else   //如果使用CRT，演绎导出
     if( ( ret = mbedtls_rsa_deduce_crt( &ctx->P, &ctx->Q, &ctx->D,
                                         DP, DQ, QP ) ) != 0 )
     {
@@ -536,15 +536,15 @@ void mbedtls_rsa_set_padding( mbedtls_rsa_context *ctx, int padding,
     RSA_VALIDATE( padding == MBEDTLS_RSA_PKCS_V15 ||
                   padding == MBEDTLS_RSA_PKCS_V21 );
 
-    ctx->padding = padding;
-    ctx->hash_id = hash_id;
+    ctx->padding = padding;     //设置填充模式
+    ctx->hash_id = hash_id;     //设置哈希算法
 }
 
 /*
  * Get length in bytes of RSA modulus
  */
 
-size_t mbedtls_rsa_get_len( const mbedtls_rsa_context *ctx )
+size_t mbedtls_rsa_get_len( const mbedtls_rsa_context *ctx )        //模数的长度
 {
     return( ctx->len );
 }
@@ -557,7 +557,7 @@ size_t mbedtls_rsa_get_len( const mbedtls_rsa_context *ctx )
  *
  * This generation method follows the RSA key pair generation procedure of
  * FIPS 186-4 if 2^16 < exponent < 2^256 and nbits = 2048 or nbits = 3072.
- */
+ */ //生成密钥对，公钥指数需要指定，这里是exponent，公钥指数与N共同构造了公钥  私钥指数和N共同构造了私钥
 int mbedtls_rsa_gen_key( mbedtls_rsa_context *ctx,
                  int (*f_rng)(void *, unsigned char *, size_t),
                  void *p_rng,
@@ -590,8 +590,8 @@ int mbedtls_rsa_gen_key( mbedtls_rsa_context *ctx,
      * 2.  GCD( E, (P-1)*(Q-1) ) == 1
      * 3.  E^-1 mod LCM(P-1, Q-1) > 2^( nbits / 2 )
      */
-    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &ctx->E, exponent ) );
-
+    MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &ctx->E, exponent ) );   //将int类型转化为mbedtls_mpi类型
+    //生成两个符合条件的大素数，反复执行，直到找到为止
     do
     {
         MBEDTLS_MPI_CHK( mbedtls_mpi_gen_prime( &ctx->P, nbits >> 1,
@@ -601,29 +601,29 @@ int mbedtls_rsa_gen_key( mbedtls_rsa_context *ctx,
                                                 prime_quality, f_rng, p_rng ) );
 
         /* make sure the difference between p and q is not too small (FIPS 186-4 §B.3.3 step 5.4) */
-        MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mpi( &H, &ctx->P, &ctx->Q ) );
+        MBEDTLS_MPI_CHK( mbedtls_mpi_sub_mpi( &H, &ctx->P, &ctx->Q ) );     //保证P、Q是相距较远的数
         if( mbedtls_mpi_bitlen( &H ) <= ( ( nbits >= 200 ) ? ( ( nbits >> 1 ) - 99 ) : 0 ) )
             continue;
 
         /* not required by any standards, but some users rely on the fact that P > Q */
-        if( H.s < 0 )
+        if( H.s < 0 )   //习惯地，P比Q大
             mbedtls_mpi_swap( &ctx->P, &ctx->Q );
 
-        /* Temporarily replace P,Q by P-1, Q-1 */
+        /* Temporarily replace P,Q by P-1, Q-1 */       //计算 (P-1)*(Q-1)
         MBEDTLS_MPI_CHK( mbedtls_mpi_sub_int( &ctx->P, &ctx->P, 1 ) );
         MBEDTLS_MPI_CHK( mbedtls_mpi_sub_int( &ctx->Q, &ctx->Q, 1 ) );
         MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mpi( &H, &ctx->P, &ctx->Q ) );
 
-        /* check GCD( E, (P-1)*(Q-1) ) == 1 (FIPS 186-4 §B.3.1 criterion 2(a)) */
+        /* check GCD( E, (P-1)*(Q-1) ) == 1 (FIPS 186-4 §B.3.1 criterion 2(a)) */   //保证 (P-1)*(Q-1) 与 E 的最大公约数为1
         MBEDTLS_MPI_CHK( mbedtls_mpi_gcd( &G, &ctx->E, &H  ) );
         if( mbedtls_mpi_cmp_int( &G, 1 ) != 0 )
             continue;
 
-        /* compute smallest possible D = E^-1 mod LCM(P-1, Q-1) (FIPS 186-4 §B.3.1 criterion 3(b)) */
+        /* compute smallest possible D = E^-1 mod LCM(P-1, Q-1) (FIPS 186-4 §B.3.1 criterion 3(b)) */   //生成私钥指数D
         MBEDTLS_MPI_CHK( mbedtls_mpi_gcd( &G, &ctx->P, &ctx->Q ) );
         MBEDTLS_MPI_CHK( mbedtls_mpi_div_mpi( &L, NULL, &H, &G ) );
         MBEDTLS_MPI_CHK( mbedtls_mpi_inv_mod( &ctx->D, &ctx->E, &L ) );
-
+        //保证私钥指数长度符合地求
         if( mbedtls_mpi_bitlen( &ctx->D ) <= ( ( nbits + 1 ) / 2 ) ) // (FIPS 186-4 §B.3.1 criterion 3(a))
             continue;
 
@@ -631,10 +631,10 @@ int mbedtls_rsa_gen_key( mbedtls_rsa_context *ctx,
     }
     while( 1 );
 
-    /* Restore P,Q */
+    /* Restore P,Q */       //存储P和Q
     MBEDTLS_MPI_CHK( mbedtls_mpi_add_int( &ctx->P,  &ctx->P, 1 ) );
     MBEDTLS_MPI_CHK( mbedtls_mpi_add_int( &ctx->Q,  &ctx->Q, 1 ) );
-
+    //存储N
     MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mpi( &ctx->N, &ctx->P, &ctx->Q ) );
 
     ctx->len = mbedtls_mpi_size( &ctx->N );
@@ -644,13 +644,13 @@ int mbedtls_rsa_gen_key( mbedtls_rsa_context *ctx,
      * DP = D mod (P - 1)
      * DQ = D mod (Q - 1)
      * QP = Q^-1 mod P
-     */
+     */     //演绎出其他值
     MBEDTLS_MPI_CHK( mbedtls_rsa_deduce_crt( &ctx->P, &ctx->Q, &ctx->D,
                                              &ctx->DP, &ctx->DQ, &ctx->QP ) );
 #endif /* MBEDTLS_RSA_NO_CRT */
 
     /* Double-check */
-    MBEDTLS_MPI_CHK( mbedtls_rsa_check_privkey( ctx ) );
+    MBEDTLS_MPI_CHK( mbedtls_rsa_check_privkey( ctx ) );    //检测私钥是否符合要求
 
 cleanup:
 
@@ -672,7 +672,7 @@ cleanup:
 /*
  * Check a public RSA key
  */
-int mbedtls_rsa_check_pubkey( const mbedtls_rsa_context *ctx )
+int mbedtls_rsa_check_pubkey( const mbedtls_rsa_context *ctx )  //检测公钥是否符合要求
 {
     RSA_VALIDATE_RET( ctx != NULL );
 
@@ -697,7 +697,7 @@ int mbedtls_rsa_check_pubkey( const mbedtls_rsa_context *ctx )
 /*
  * Check for the consistency of all fields in an RSA private key context
  */
-int mbedtls_rsa_check_privkey( const mbedtls_rsa_context *ctx )
+int mbedtls_rsa_check_privkey( const mbedtls_rsa_context *ctx )     //检测私钥是否符合要求
 {
     RSA_VALIDATE_RET( ctx != NULL );
 
@@ -707,14 +707,14 @@ int mbedtls_rsa_check_privkey( const mbedtls_rsa_context *ctx )
         return( MBEDTLS_ERR_RSA_KEY_CHECK_FAILED );
     }
 
-    if( mbedtls_rsa_validate_params( &ctx->N, &ctx->P, &ctx->Q,
+    if( mbedtls_rsa_validate_params( &ctx->N, &ctx->P, &ctx->Q,     //粗糙地对参数进行检测
                                      &ctx->D, &ctx->E, NULL, NULL ) != 0 )
     {
         return( MBEDTLS_ERR_RSA_KEY_CHECK_FAILED );
     }
 
 #if !defined(MBEDTLS_RSA_NO_CRT)
-    else if( mbedtls_rsa_validate_crt( &ctx->P, &ctx->Q, &ctx->D,
+    else if( mbedtls_rsa_validate_crt( &ctx->P, &ctx->Q, &ctx->D,       //对CRT参数进行检测
                                        &ctx->DP, &ctx->DQ, &ctx->QP ) != 0 )
     {
         return( MBEDTLS_ERR_RSA_KEY_CHECK_FAILED );
@@ -727,7 +727,7 @@ int mbedtls_rsa_check_privkey( const mbedtls_rsa_context *ctx )
 /*
  * Check if contexts holding a public and private key match
  */
-int mbedtls_rsa_check_pub_priv( const mbedtls_rsa_context *pub,
+int mbedtls_rsa_check_pub_priv( const mbedtls_rsa_context *pub,     //两个公私钥对是否一致
                                 const mbedtls_rsa_context *prv )
 {
     RSA_VALIDATE_RET( pub != NULL );
@@ -751,7 +751,7 @@ int mbedtls_rsa_check_pub_priv( const mbedtls_rsa_context *pub,
 /*
  * Do an RSA public key operation
  */
-int mbedtls_rsa_public( mbedtls_rsa_context *ctx,
+int mbedtls_rsa_public( mbedtls_rsa_context *ctx,       //rsa公钥加密
                 const unsigned char *input,
                 unsigned char *output )
 {
@@ -774,15 +774,15 @@ int mbedtls_rsa_public( mbedtls_rsa_context *ctx,
 
     MBEDTLS_MPI_CHK( mbedtls_mpi_read_binary( &T, input, ctx->len ) );
 
-    if( mbedtls_mpi_cmp_mpi( &T, &ctx->N ) >= 0 )
+    if( mbedtls_mpi_cmp_mpi( &T, &ctx->N ) >= 0 )   //分段加密，确保每段密文的hex串转为mpi后要比ctx->N小，这可以作为一个设置段加密缓冲的参考依据
     {
         ret = MBEDTLS_ERR_MPI_BAD_INPUT_DATA;
         goto cleanup;
     }
 
     olen = ctx->len;
-    MBEDTLS_MPI_CHK( mbedtls_mpi_exp_mod( &T, &T, &ctx->E, &ctx->N, &ctx->RN ) );
-    MBEDTLS_MPI_CHK( mbedtls_mpi_write_binary( &T, output, olen ) );
+    MBEDTLS_MPI_CHK( mbedtls_mpi_exp_mod( &T, &T, &ctx->E, &ctx->N, &ctx->RN ) );   //T = T^E mod N  T在这里相当于明文，相当于对明文T加密，密文仍以T保存
+    MBEDTLS_MPI_CHK( mbedtls_mpi_write_binary( &T, output, olen ) );        //密文输出
 
 cleanup:
 #if defined(MBEDTLS_THREADING_C)
@@ -860,7 +860,7 @@ cleanup:
 #define RSA_EXPONENT_BLINDING 28
 
 /*
- * Do an RSA private key operation
+ * Do an RSA private key operation      //rsa私钥解密
  */
 int mbedtls_rsa_private( mbedtls_rsa_context *ctx,
                  int (*f_rng)(void *, unsigned char *, size_t),
@@ -1179,11 +1179,11 @@ int mbedtls_rsa_rsaes_oaep_encrypt( mbedtls_rsa_context *ctx,
 
     if( f_rng == NULL )
         return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
-
+    //得到哈希算法信息
     md_info = mbedtls_md_info_from_type( (mbedtls_md_type_t) ctx->hash_id );
     if( md_info == NULL )
         return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
-
+    //模数的长度
     olen = ctx->len;
     hlen = mbedtls_md_get_size( md_info );
 
@@ -1265,22 +1265,22 @@ int mbedtls_rsa_rsaes_pkcs1_v15_encrypt( mbedtls_rsa_context *ctx,
     if( ilen + 11 < ilen || olen < ilen + 11 )
         return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
 
-    nb_pad = olen - 3 - ilen;
-
-    *p++ = 0;
-    if( mode == MBEDTLS_RSA_PUBLIC )
+    nb_pad = olen - 3 - ilen;   //可以看出，如果加密的串小于ctx->len，则先将空白预先填充，余下的用作密文存储，
+                                //总长度为ctx->len
+    *p++ = 0;       //第一个字节填充0
+    if( mode == MBEDTLS_RSA_PUBLIC )    //公钥加密
     {
         if( f_rng == NULL )
             return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
 
-        *p++ = MBEDTLS_RSA_CRYPT;
+        *p++ = MBEDTLS_RSA_CRYPT;       //第二个字节填充MBEDTLS_RSA_PUBLIC
 
         while( nb_pad-- > 0 )
         {
             int rng_dl = 100;
 
             do {
-                ret = f_rng( p_rng, p, 1 );
+                ret = f_rng( p_rng, p, 1 );     //从填充段第三个至填充段倒数第二个字节，每个字节均使用非零数填充
             } while( *p == 0 && --rng_dl && ret == 0 );
 
             /* Check if RNG failed to generate data */
@@ -1290,7 +1290,7 @@ int mbedtls_rsa_rsaes_pkcs1_v15_encrypt( mbedtls_rsa_context *ctx,
             p++;
         }
     }
-    else
+    else    //私钥签名，这个建议弃用
     {
         *p++ = MBEDTLS_RSA_SIGN;
 
@@ -1298,7 +1298,7 @@ int mbedtls_rsa_rsaes_pkcs1_v15_encrypt( mbedtls_rsa_context *ctx,
             *p++ = 0xFF;
     }
 
-    *p++ = 0;
+    *p++ = 0;       //填充段最后一个使0填充
     memcpy( p, input, ilen );
 
     return( ( mode == MBEDTLS_RSA_PUBLIC )
@@ -1630,27 +1630,27 @@ int mbedtls_rsa_rsaes_pkcs1_v15_decrypt( mbedtls_rsa_context *ctx,
 
     ret = ( mode == MBEDTLS_RSA_PUBLIC )
           ? mbedtls_rsa_public(  ctx, input, buf )
-          : mbedtls_rsa_private( ctx, f_rng, p_rng, input, buf );
+          : mbedtls_rsa_private( ctx, f_rng, p_rng, input, buf );   //使用私钥解密，输出内容到buf
 
     if( ret != 0 )
         goto cleanup;
 
     /* Check and get padding length in constant time and constant
      * memory trace. The first byte must be 0. */
-    bad |= buf[0];
+    bad |= buf[0];  //buf中第一个字节是0
 
     if( mode == MBEDTLS_RSA_PRIVATE )
     {
         /* Decode EME-PKCS1-v1_5 padding: 0x00 || 0x02 || PS || 0x00
          * where PS must be at least 8 nonzero bytes. */
-        bad |= buf[1] ^ MBEDTLS_RSA_CRYPT;
+        bad |= buf[1] ^ MBEDTLS_RSA_CRYPT;  //buf中第二个字节是 MBEDTLS_RSA_CRYPT
 
         /* Read the whole buffer. Set pad_done to nonzero if we find
          * the 0x00 byte and remember the padding length in pad_count. */
-        for( i = 2; i < ilen; i++ )
+        for( i = 2; i < ilen; i++ )     //从缓冲区第3个字节开始校验，
         {
-            pad_done  |= ((buf[i] | (unsigned char)-buf[i]) >> 7) ^ 1;
-            pad_count += ((pad_done | (unsigned char)-pad_done) >> 7) ^ 1;
+            pad_done  |= ((buf[i] | (unsigned char)-buf[i]) >> 7) ^ 1;          //确保pad_done为0
+            pad_count += ((pad_done | (unsigned char)-pad_done) >> 7) ^ 1;      //pad_done只要为0，pad_count就会一真自增1个，直到遇到pad_done非0，自增停止
         }
     }
     else
@@ -1787,7 +1787,7 @@ int mbedtls_rsa_pkcs1_decrypt( mbedtls_rsa_context *ctx,
 #if defined(MBEDTLS_PKCS1_V21)
 /*
  * Implementation of the PKCS#1 v2.1 RSASSA-PSS-SIGN function
- */
+ */     //废弃的函数
 int mbedtls_rsa_rsassa_pss_sign( mbedtls_rsa_context *ctx,
                          int (*f_rng)(void *, unsigned char *, size_t),
                          void *p_rng,

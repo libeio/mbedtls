@@ -422,13 +422,13 @@ static uint32_t RCON[10];
 /*
  * Tables generation code
  */
-#define ROTL8(x) ( ( (x) << 8 ) & 0xFFFFFFFF ) | ( (x) >> 24 )
+#define ROTL8(x) ( ( (x) << 8 ) & 0xFFFFFFFF ) | ( (x) >> 24 )  // 取高8位的低8位
 #define XTIME(x) ( ( (x) << 1 ) ^ ( ( (x) & 0x80 ) ? 0x1B : 0x00 ) )
 #define MUL(x,y) ( ( (x) && (y) ) ? pow[(log[(x)]+log[(y)]) % 255] : 0 )
 
 static int aes_init_done = 0;
 
-static void aes_gen_tables( void )
+static void aes_gen_tables( void )      //生成aes加密表
 {
     int i, x, y, z;
     int pow[256];
@@ -580,7 +580,7 @@ void mbedtls_aes_xts_free( mbedtls_aes_xts_context *ctx )
  * AES key schedule (encryption)
  */
 #if !defined(MBEDTLS_AES_SETKEY_ENC_ALT)
-int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
+int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,     //设置加密密钥，即将ctx与key绑定，加密前的准备工作
                     unsigned int keybits )
 {
     unsigned int i;
@@ -589,7 +589,7 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
     AES_VALIDATE_RET( ctx != NULL );
     AES_VALIDATE_RET( key != NULL );
 
-    switch( keybits )
+    switch( keybits )       //根据密钥长度设置加密轮数，目前aes密钥长度只有3种
     {
         case 128: ctx->nr = 10; break;
         case 192: ctx->nr = 12; break;
@@ -607,10 +607,10 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
 
 #if defined(MBEDTLS_PADLOCK_C) && defined(MBEDTLS_PADLOCK_ALIGN16)
     if( aes_padlock_ace == -1 )
-        aes_padlock_ace = mbedtls_padlock_has_support( MBEDTLS_PADLOCK_ACE );
+        aes_padlock_ace = mbedtls_padlock_has_support( MBEDTLS_PADLOCK_ACE );   //cpu是否支持 MBEDTLS_PADLOCK_ACE 模式
 
     if( aes_padlock_ace )
-        ctx->rk = RK = MBEDTLS_PADLOCK_ALIGN16( ctx->buf );
+        ctx->rk = RK = MBEDTLS_PADLOCK_ALIGN16( ctx->buf );     //设置轮密钥
     else
 #endif
     ctx->rk = RK = ctx->buf;
@@ -620,7 +620,7 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
         return( mbedtls_aesni_setkey_enc( (unsigned char *) ctx->rk, key, keybits ) );
 #endif
 
-    for( i = 0; i < ( keybits >> 5 ); i++ )
+    for( i = 0; i < ( keybits >> 5 ); i++ ) //将密钥转为4字节整型，假设密钥位数为256，则转为256/32=8个整型，要循环8次
     {
         GET_UINT32_LE( RK[i], key, i << 2 );
     }
@@ -763,8 +763,8 @@ exit:
     return( ret );
 }
 
-#if defined(MBEDTLS_CIPHER_MODE_XTS)
-static int mbedtls_aes_xts_decode_keys( const unsigned char *key,
+#if defined(MBEDTLS_CIPHER_MODE_XTS)        //XTS模式加密
+static int mbedtls_aes_xts_decode_keys( const unsigned char *key,       //key相当于一个随机数，从此随机数中提取出key1和key2
                                         unsigned int keybits,
                                         const unsigned char **key1,
                                         unsigned int *key1bits,
@@ -894,7 +894,7 @@ int mbedtls_aes_xts_setkey_dec( mbedtls_aes_xts_context *ctx,
  * AES-ECB block encryption
  */
 #if !defined(MBEDTLS_AES_ENCRYPT_ALT)
-int mbedtls_internal_aes_encrypt( mbedtls_aes_context *ctx,
+int mbedtls_internal_aes_encrypt( mbedtls_aes_context *ctx,             //加密字符串，每次加密16个字节
                                   const unsigned char input[16],
                                   unsigned char output[16] )
 {
@@ -974,7 +974,7 @@ void mbedtls_aes_encrypt( mbedtls_aes_context *ctx,
  * AES-ECB block decryption
  */
 #if !defined(MBEDTLS_AES_DECRYPT_ALT)
-int mbedtls_internal_aes_decrypt( mbedtls_aes_context *ctx,
+int mbedtls_internal_aes_decrypt( mbedtls_aes_context *ctx,         //解密字符串，每次解密16个字符串
                                   const unsigned char input[16],
                                   unsigned char output[16] )
 {
@@ -1053,7 +1053,7 @@ void mbedtls_aes_decrypt( mbedtls_aes_context *ctx,
 /*
  * AES-ECB block encryption/decryption
  */
-int mbedtls_aes_crypt_ecb( mbedtls_aes_context *ctx,
+int mbedtls_aes_crypt_ecb( mbedtls_aes_context *ctx,        //ecb模式加解密  
                            int mode,
                            const unsigned char input[16],
                            unsigned char output[16] )
@@ -1091,9 +1091,9 @@ int mbedtls_aes_crypt_ecb( mbedtls_aes_context *ctx,
 /*
  * AES-CBC buffer encryption/decryption
  */
-int mbedtls_aes_crypt_cbc( mbedtls_aes_context *ctx,
+int mbedtls_aes_crypt_cbc( mbedtls_aes_context *ctx,        //cbc模式加解密
                     int mode,
-                    size_t length,
+                    size_t length,              //input的长度，必须为16的整数倍
                     unsigned char iv[16],
                     const unsigned char *input,
                     unsigned char *output )
@@ -1128,12 +1128,12 @@ int mbedtls_aes_crypt_cbc( mbedtls_aes_context *ctx,
         while( length > 0 )
         {
             memcpy( temp, input, 16 );
-            mbedtls_aes_crypt_ecb( ctx, mode, input, output );
+            mbedtls_aes_crypt_ecb( ctx, mode, input, output );      //解密操作：将输入分组备份，对输入分组解密，结果再与iv向量进行位异或运算
 
             for( i = 0; i < 16; i++ )
                 output[i] = (unsigned char)( output[i] ^ iv[i] );
 
-            memcpy( iv, temp, 16 );
+            memcpy( iv, temp, 16 );     //将备份分组作为新的iv
 
             input  += 16;
             output += 16;
@@ -1145,7 +1145,7 @@ int mbedtls_aes_crypt_cbc( mbedtls_aes_context *ctx,
         while( length > 0 )
         {
             for( i = 0; i < 16; i++ )
-                output[i] = (unsigned char)( input[i] ^ iv[i] );
+                output[i] = (unsigned char)( input[i] ^ iv[i] );    //加密操作：先与iv向量进行位异或运算，再加密，密文分组作为新的iv
 
             mbedtls_aes_crypt_ecb( ctx, mode, output, output );
             memcpy( iv, output, 16 );
@@ -1258,7 +1258,7 @@ int mbedtls_aes_crypt_xts( mbedtls_aes_xts_context *ctx,
     {
         size_t i;
 
-        if( leftover && ( mode == MBEDTLS_AES_DECRYPT ) && blocks == 0 )
+        if( leftover && ( mode == MBEDTLS_AES_DECRYPT ) && blocks == 0 )    //对最后一块的处理
         {
             /* We are on the last block in a decrypt operation that has
              * leftover bytes, so we need to use the next tweak for this block,
@@ -1373,11 +1373,11 @@ int mbedtls_aes_crypt_cfb128( mbedtls_aes_context *ctx,
         while( length-- )
         {
             if( n == 0 )
-                mbedtls_aes_crypt_ecb( ctx, MBEDTLS_AES_ENCRYPT, iv, iv );
+                mbedtls_aes_crypt_ecb( ctx, MBEDTLS_AES_ENCRYPT, iv, iv );  //对iv加密
 
-            iv[n] = *output++ = (unsigned char)( iv[n] ^ *input++ );
+            iv[n] = *output++ = (unsigned char)( iv[n] ^ *input++ );    //加密后的iv与明文异或，生成密文分组，密文分组也作为新的iv
 
-            n = ( n + 1 ) & 0x0F;
+            n = ( n + 1 ) & 0x0F;   //对iv的加密是很耗费资源的，所以这里每隔16个段加密缓冲才对iv进行一次加密
         }
     }
 
@@ -1503,7 +1503,7 @@ int mbedtls_aes_crypt_ctr( mbedtls_aes_context *ctx,
             mbedtls_aes_crypt_ecb( ctx, MBEDTLS_AES_ENCRYPT, nonce_counter, stream_block );
 
             for( i = 16; i > 0; i-- )
-                if( ++nonce_counter[i - 1] != 0 )
+                if( ++nonce_counter[i - 1] != 0 )   //nonce_counter[i-1]的值加1
                     break;
         }
         c = *input++;
@@ -1834,7 +1834,7 @@ static const unsigned char aes_test_xts_data_unit[][16] =
 /*
  * Checkup routine
  */
-int mbedtls_aes_self_test( int verbose )
+int mbedtls_aes_self_test( int verbose )        //测试
 {
     int ret = 0, i, j, u, mode;
     unsigned int keybits;
@@ -1881,12 +1881,12 @@ int mbedtls_aes_self_test( int verbose )
         if( mode == MBEDTLS_AES_DECRYPT )
         {
             ret = mbedtls_aes_setkey_dec( &ctx, key, keybits );
-            aes_tests = aes_test_ecb_dec[u];
+            aes_tests = aes_test_ecb_dec[u];        //用于参照的明文
         }
         else
         {
             ret = mbedtls_aes_setkey_enc( &ctx, key, keybits );
-            aes_tests = aes_test_ecb_enc[u];
+            aes_tests = aes_test_ecb_enc[u];        //用于参数的密文
         }
 
         /*
@@ -1904,7 +1904,7 @@ int mbedtls_aes_self_test( int verbose )
             goto exit;
         }
 
-        for( j = 0; j < 10000; j++ )
+        for( j = 0; j < 10000; j++ )    //ecb模式下，对16个字符加密或解密10000次
         {
             ret = mbedtls_aes_crypt_ecb( &ctx, mode, buf, buf );
             if( ret != 0 )
@@ -2036,12 +2036,12 @@ int mbedtls_aes_self_test( int verbose )
         if( mode == MBEDTLS_AES_DECRYPT )
         {
             memcpy( buf, aes_test_cfb128_ct[u], 64 );
-            aes_tests = aes_test_cfb128_pt;
+            aes_tests = aes_test_cfb128_pt;     //参照明文
         }
         else
         {
             memcpy( buf, aes_test_cfb128_pt, 64 );
-            aes_tests = aes_test_cfb128_ct[u];
+            aes_tests = aes_test_cfb128_ct[u];  //参照密文
         }
 
         ret = mbedtls_aes_crypt_cfb128( &ctx, mode, 64, &offset, iv, buf, buf );

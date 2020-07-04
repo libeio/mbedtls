@@ -549,7 +549,7 @@ const mbedtls_ecp_curve_info *mbedtls_ecp_curve_info_from_name( const char *name
 /*
  * Get the type of a curve
  */
-static inline ecp_curve_type ecp_get_type( const mbedtls_ecp_group *grp )
+static inline ecp_curve_type ecp_get_type( const mbedtls_ecp_group *grp )   //确定ecp类型，是蒙哥曲线带是威尔斯曲线
 {
     if( grp->G.X.p == NULL )
         return( ECP_TYPE_NONE );
@@ -788,15 +788,15 @@ int mbedtls_ecp_point_write_binary( const mbedtls_ecp_group *grp,
 
     plen = mbedtls_mpi_size( &grp->P );
 
-    if( format == MBEDTLS_ECP_PF_UNCOMPRESSED )
+    if( format == MBEDTLS_ECP_PF_UNCOMPRESSED ) //非压缩格式
     {
-        *olen = 2 * plen + 1;
+        *olen = 2 * plen + 1;   //将十六进制串转化为unsigned char串，首字符为0x04，还需2倍长度
 
         if( buflen < *olen )
             return( MBEDTLS_ERR_ECP_BUFFER_TOO_SMALL );
 
         buf[0] = 0x04;
-        MBEDTLS_MPI_CHK( mbedtls_mpi_write_binary( &P->X, buf + 1, plen ) );
+        MBEDTLS_MPI_CHK( mbedtls_mpi_write_binary( &P->X, buf + 1, plen ) );        //X和Y长度相等，导出到同一个buf，连续存储
         MBEDTLS_MPI_CHK( mbedtls_mpi_write_binary( &P->Y, buf + 1 + plen, plen ) );
     }
     else if( format == MBEDTLS_ECP_PF_COMPRESSED )
@@ -806,8 +806,8 @@ int mbedtls_ecp_point_write_binary( const mbedtls_ecp_group *grp,
         if( buflen < *olen )
             return( MBEDTLS_ERR_ECP_BUFFER_TOO_SMALL );
 
-        buf[0] = 0x02 + mbedtls_mpi_get_bit( &P->Y, 0 );
-        MBEDTLS_MPI_CHK( mbedtls_mpi_write_binary( &P->X, buf + 1, plen ) );
+        buf[0] = 0x02 + mbedtls_mpi_get_bit( &P->Y, 0 );                        //记录Y的索引为0的比特值
+        MBEDTLS_MPI_CHK( mbedtls_mpi_write_binary( &P->X, buf + 1, plen ) );    //只导出X
     }
 
 cleanup:

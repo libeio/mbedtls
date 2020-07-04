@@ -104,7 +104,7 @@ static int dhm_read_bignum( mbedtls_mpi *X,
     if( end - *p < 2 )
         return( MBEDTLS_ERR_DHM_BAD_INPUT_DATA );
 
-    n = ( (*p)[0] << 8 ) | (*p)[1];
+    n = ( (*p)[0] << 8 ) | (*p)[1];     //先读取对应大数的长度
     (*p) += 2;
 
     if( (int)( end - *p ) < n )
@@ -140,7 +140,7 @@ static int dhm_check_range( const mbedtls_mpi *param, const mbedtls_mpi *P )
     MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &L, 2 ) );
     MBEDTLS_MPI_CHK( mbedtls_mpi_sub_int( &U, P, 2 ) );
 
-    if( mbedtls_mpi_cmp_mpi( param, &L ) < 0 ||
+    if( mbedtls_mpi_cmp_mpi( param, &L ) < 0 ||     //确保 2 <= param <= P - 2
         mbedtls_mpi_cmp_mpi( param, &U ) > 0 )
     {
         ret = MBEDTLS_ERR_DHM_BAD_INPUT_DATA;
@@ -171,7 +171,7 @@ int mbedtls_dhm_read_params( mbedtls_dhm_context *ctx,
 
     if( ( ret = dhm_read_bignum( &ctx->P,  p, end ) ) != 0 ||
         ( ret = dhm_read_bignum( &ctx->G,  p, end ) ) != 0 ||
-        ( ret = dhm_read_bignum( &ctx->GY, p, end ) ) != 0 )
+        ( ret = dhm_read_bignum( &ctx->GY, p, end ) ) != 0 )    //将对端的GX读取，作为本地的GY值
         return( ret );
 
     if( ( ret = dhm_check_range( &ctx->GY, &ctx->P ) ) != 0 )
@@ -214,7 +214,7 @@ int mbedtls_dhm_make_params( mbedtls_dhm_context *ctx, int x_size,
         if( count++ > 10 )
             return( MBEDTLS_ERR_DHM_MAKE_PARAMS_FAILED );
     }
-    while( dhm_check_range( &ctx->X, &ctx->P ) != 0 );
+    while( dhm_check_range( &ctx->X, &ctx->P ) != 0 );  //确保 2 <= X <= P - 2
 
     /*
      * Calculate GX = G^X mod P
@@ -227,7 +227,7 @@ int mbedtls_dhm_make_params( mbedtls_dhm_context *ctx, int x_size,
 
     /*
      * export P, G, GX
-     */
+     */     //每次先存入对应大数的字节长度，网络字节序存储
 #define DHM_MPI_EXPORT( X, n )                                          \
     do {                                                                \
         MBEDTLS_MPI_CHK( mbedtls_mpi_write_binary( ( X ),               \
@@ -241,7 +241,7 @@ int mbedtls_dhm_make_params( mbedtls_dhm_context *ctx, int x_size,
     n1 = mbedtls_mpi_size( &ctx->P  );
     n2 = mbedtls_mpi_size( &ctx->G  );
     n3 = mbedtls_mpi_size( &ctx->GX );
-
+    //将P G G^X mod P 三个大数导入到 output 中，务必确保output足够长， sizeof(output) >= n1 + n2 + n3
     p = output;
     DHM_MPI_EXPORT( &ctx->P , n1 );
     DHM_MPI_EXPORT( &ctx->G , n2 );
@@ -285,7 +285,7 @@ int mbedtls_dhm_set_group( mbedtls_dhm_context *ctx,
  * Import the peer's public value G^Y
  */
 int mbedtls_dhm_read_public( mbedtls_dhm_context *ctx,
-                     const unsigned char *input, size_t ilen )
+                     const unsigned char *input, size_t ilen )      //读取对端发来的公共值 (G^Y mod P)
 {
     int ret;
     DHM_VALIDATE_RET( ctx != NULL );
@@ -326,7 +326,7 @@ int mbedtls_dhm_make_public( mbedtls_dhm_context *ctx, int x_size,
     {
         MBEDTLS_MPI_CHK( mbedtls_mpi_fill_random( &ctx->X, x_size, f_rng, p_rng ) );
 
-        while( mbedtls_mpi_cmp_mpi( &ctx->X, &ctx->P ) >= 0 )
+        while( mbedtls_mpi_cmp_mpi( &ctx->X, &ctx->P ) >= 0 )       //确保X比P小
             MBEDTLS_MPI_CHK( mbedtls_mpi_shift_r( &ctx->X, 1 ) );
 
         if( count++ > 10 )
@@ -334,7 +334,7 @@ int mbedtls_dhm_make_public( mbedtls_dhm_context *ctx, int x_size,
     }
     while( dhm_check_range( &ctx->X, &ctx->P ) != 0 );
 
-    MBEDTLS_MPI_CHK( mbedtls_mpi_exp_mod( &ctx->GX, &ctx->G, &ctx->X,
+    MBEDTLS_MPI_CHK( mbedtls_mpi_exp_mod( &ctx->GX, &ctx->G, &ctx->X,       // GX = G ^ X mod P
                           &ctx->P , &ctx->RP ) );
 
     if( ( ret = dhm_check_range( &ctx->GX, &ctx->P ) ) != 0 )

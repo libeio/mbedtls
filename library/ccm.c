@@ -174,9 +174,9 @@ void mbedtls_ccm_free( mbedtls_ccm_context *ctx )
     } while( 0 )
 
 /*
- * Authenticated encryption or decryption
+ * Authenticated encryption or decryption        认证加密 或 解密
  */
-static int ccm_auth_crypt( mbedtls_ccm_context *ctx, int mode, size_t length,
+static int ccm_auth_crypt( mbedtls_ccm_context *ctx, int mode, size_t length,       // 填充依次为 初始化向量 额外数据 密文
                            const unsigned char *iv, size_t iv_len,
                            const unsigned char *add, size_t add_len,
                            const unsigned char *input, unsigned char *output,
@@ -186,8 +186,8 @@ static int ccm_auth_crypt( mbedtls_ccm_context *ctx, int mode, size_t length,
     unsigned char i;
     unsigned char q;
     size_t len_left, olen;
-    unsigned char b[16];
-    unsigned char y[16];
+    unsigned char b[16];            // 将 b 理解为可以反复使用的处理缓冲
+    unsigned char y[16];            // 将 y 理解为存储处理后数据的缓冲
     unsigned char ctr[16];
     const unsigned char *src;
     unsigned char *dst;
@@ -209,28 +209,28 @@ static int ccm_auth_crypt( mbedtls_ccm_context *ctx, int mode, size_t length,
     if( add_len > 0xFF00 )
         return( MBEDTLS_ERR_CCM_BAD_INPUT );
 
-    q = 16 - 1 - (unsigned char) iv_len;
+    q = 16 - 1 - (unsigned char) iv_len;        // 确保 q + n = 15, 取边界值，假设 iv_len = 12, 则 q = 3 ；假设 iv_len = 7, 则 q = 8
 
     /*
-     * First block B_0:
+     * First block B_0:         第一个 16 字节块的填充，首位为标志位，1 至 iv_len 为 nonce 位，其余位存储输入缓冲长度
      * 0        .. 0        flags
      * 1        .. iv_len   nonce (aka iv)
      * iv_len+1 .. 15       length
      *
-     * With flags as (bits):
-     * 7        0
-     * 6        add present?
-     * 5 .. 3   (t - 2) / 2
-     * 2 .. 0   q - 1
+     * With flags as (bits):    标志字节（第1个字节），假设比特位索引自左向右为 0 1 2 3 4 5 6 7
+     * 7        0               第 7 比特位设置为 0，如果有 add
+     * 6        add present?    第 6 比特位设置为 1
+     * 5 .. 3   (t - 2) / 2     tag_len 最大长度为 16, (16 - 2)/2 = 7 最大占 3 个比特位， 利用第 5 4 3 比特存储 tag_len 大小
+     * 2 .. 0   q - 1           q 最大为 8, q - 1 最大为 7，利用第 2 1 0 比特存储 q
      */
     b[0] = 0;
-    b[0] |= ( add_len > 0 ) << 6;
-    b[0] |= ( ( tag_len - 2 ) / 2 ) << 3;
-    b[0] |= q - 1;
+    b[0] |= ( add_len > 0 ) << 6;               // 是否有附加数据
+    b[0] |= ( ( tag_len - 2 ) / 2 ) << 3;       // MAC 长度
+    b[0] |= q - 1;                              // 有效载荷长度
 
-    memcpy( b + 1, iv, iv_len );
+    memcpy( b + 1, iv, iv_len );    // 2 字节及其之后填充 iv, 长度 iv_len,  iv_len 可取值 7 8 9 10 11 12 13 ,iv_len = 12，余 3 个字节; iv_len = 7, 余 8 个字节
 
-    for( i = 0, len_left = length; i < q; i++, len_left >>= 8 )
+    for( i = 0, len_left = length; i < q; i++, len_left >>= 8 )     // 存储输入缓冲长度， 假设 iv_len = 12, 则留 3 个字节存储长度，一共存储 2^24 = 16G 大小
         b[15-i] = (unsigned char)( len_left & 0xFF );
 
     if( len_left > 0 )
@@ -239,47 +239,47 @@ static int ccm_auth_crypt( mbedtls_ccm_context *ctx, int mode, size_t length,
 
     /* Start CBC-MAC with first block */
     memset( y, 0, 16 );
-    UPDATE_CBC_MAC;
+    UPDATE_CBC_MAC;             // 将 b 缓冲内容拷贝到 y 缓冲，并加密
 
     /*
      * If there is additional data, update CBC-MAC with
      * add_len, add, 0 (padding to a block boundary)
      */
-    if( add_len > 0 )
+    if( add_len > 0 )           // 对附加数据的处理
     {
         size_t use_len;
         len_left = add_len;
         src = add;
 
-        memset( b, 0, 16 );
-        b[0] = (unsigned char)( ( add_len >> 8 ) & 0xFF );
+        memset( b, 0, 16 );     // 因为已经将 b 中的数据拷贝到 y 中，所以可以继续使用 b
+        b[0] = (unsigned char)( ( add_len >> 8 ) & 0xFF );  // 前两个字节存储附加数据的长度，大端模式存储
         b[1] = (unsigned char)( ( add_len      ) & 0xFF );
 
-        use_len = len_left < 16 - 2 ? len_left : 16 - 2;
+        use_len = len_left < 16 - 2 ? len_left : 16 - 2;    // 因为前两个字节存储为 add_len，所以在本字节内，只留了 14 个字节处理附加数据
         memcpy( b + 2, src, use_len );
         len_left -= use_len;
         src += use_len;
 
-        UPDATE_CBC_MAC;
+        UPDATE_CBC_MAC;     // 将 b 缓冲数据与 y 缓冲数据异或，加密
 
-        while( len_left > 0 )
+        while( len_left > 0 )   // 如果附加数据没有处理完毕，继续处理(每次处理 16 个字节)
         {
             use_len = len_left > 16 ? 16 : len_left;
 
             memset( b, 0, 16 );
             memcpy( b, src, use_len );
-            UPDATE_CBC_MAC;
+            UPDATE_CBC_MAC;     // 将 b 缓冲与 y 缓冲异或，加密
 
             len_left -= use_len;
             src += use_len;
         }
     }
-
+    // 始终是那个 y 缓冲，就像是一层一层"摞"起来一样。   前面一大坨，只用一个 16 字节的 y 存储，变态变态变态！
     /*
-     * Prepare counter block for encryption:
-     * 0        .. 0        flags
-     * 1        .. iv_len   nonce (aka iv)
-     * iv_len+1 .. 15       counter (initially 1)
+     * Prepare counter block for encryption:            // 与第 1 个 16 字节块的填充格式很"对齐"
+     * 0        .. 0        flags                       // 第一个字节用作标志字节位
+     * 1        .. iv_len   nonce (aka iv)              // 第二及其后的 iv_len 个字节作 nonce 位
+     * iv_len+1 .. 15       counter (initially 1)       // 16 字节块的其余字节用作计数
      *
      * With flags as (bits):
      * 7 .. 3   0
@@ -296,24 +296,24 @@ static int ccm_auth_crypt( mbedtls_ccm_context *ctx, int mode, size_t length,
      * The only difference between encryption and decryption is
      * the respective order of authentication and {en,de}cryption.
      */
-    len_left = length;
+    len_left = length;      // 明文输入缓冲长度
     src = input;
     dst = output;
 
     while( len_left > 0 )
     {
-        size_t use_len = len_left > 16 ? 16 : len_left;
+        size_t use_len = len_left > 16 ? 16 : len_left;     // 每次最多加密 16 个字节
 
-        if( mode == CCM_ENCRYPT )
+        if( mode == CCM_ENCRYPT )           // 加密
         {
             memset( b, 0, 16 );
-            memcpy( b, src, use_len );
-            UPDATE_CBC_MAC;
+            memcpy( b, src, use_len );      // 明文拷入 b 缓冲中
+            UPDATE_CBC_MAC;                 // b 缓冲与 y 缓冲异或，将异或结果加密
         }
 
-        CTR_CRYPT( dst, src, use_len );
+        CTR_CRYPT( dst, src, use_len );     // 将 ctr 加密，加密结果与明文 src 异或, 得到明文 dst
 
-        if( mode == CCM_DECRYPT )
+        if( mode == CCM_DECRYPT )           // 解密
         {
             memset( b, 0, 16 );
             memcpy( b, dst, use_len );
@@ -328,7 +328,7 @@ static int ccm_auth_crypt( mbedtls_ccm_context *ctx, int mode, size_t length,
          * Increment counter.
          * No need to check for overflow thanks to the length check above.
          */
-        for( i = 0; i < q; i++ )
+        for( i = 0; i < q; i++ )            // nonce 递增
             if( ++ctr[15-i] != 0 )
                 break;
     }
@@ -339,14 +339,14 @@ static int ccm_auth_crypt( mbedtls_ccm_context *ctx, int mode, size_t length,
     for( i = 0; i < q; i++ )
         ctr[15-i] = 0;
 
-    CTR_CRYPT( y, y, 16 );
-    memcpy( tag, y, tag_len );
+    CTR_CRYPT( y, y, 16 );          // 将 ctr 加密，加密结果与 y 异或，存入 y
+    memcpy( tag, y, tag_len );      // 将 y 拷贝 tag_len 长度到 tag 中
 
     return( 0 );
 }
 
 /*
- * Authenticated encryption
+ * Authenticated encryption         // 认证加密
  */
 int mbedtls_ccm_star_encrypt_and_tag( mbedtls_ccm_context *ctx, size_t length,
                          const unsigned char *iv, size_t iv_len,

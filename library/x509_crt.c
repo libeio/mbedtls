@@ -110,7 +110,7 @@
  */
 typedef struct {
     mbedtls_x509_crt *crt;
-    uint32_t flags;
+    uint32_t flags;             // 证书是否有效的标志。0 时有效，非 0 时无效。
 } x509_crt_verify_chain_item;
 
 /*
@@ -120,6 +120,15 @@ typedef struct {
 
 /*
  * Default profile
+ */
+/**
+    证书未必是从 mbedtls 签发的。所以 mbedtls 需要事先构造证书解析环境，如果外来证书满足环境要求，则能够解析，
+    否则无法解析。
+    缺省时，证书解析环境如下：
+        哈希算法：   支持 SHA 类哈希
+        非对称算法：支持任何非对称算法
+        椭圆曲线：   支持任何椭圆曲线
+        2048：       如果非对称算法是 RSA，则其密钥长度不低于 2048 bit
  */
 const mbedtls_x509_crt_profile mbedtls_x509_crt_profile_default =
 {
@@ -139,6 +148,9 @@ const mbedtls_x509_crt_profile mbedtls_x509_crt_profile_default =
 
 /*
  * Next-default profile
+ */
+/**
+    第二种缺省下的证书解析环境。
  */
 const mbedtls_x509_crt_profile mbedtls_x509_crt_profile_next =
 {
@@ -227,7 +239,7 @@ static int x509_profile_check_key( const mbedtls_x509_crt_profile *profile,
 #if defined(MBEDTLS_RSA_C)
     if( pk_alg == MBEDTLS_PK_RSA || pk_alg == MBEDTLS_PK_RSASSA_PSS )
     {
-        if( mbedtls_pk_get_bitlen( pk ) >= profile->rsa_min_bitlen )
+        if( mbedtls_pk_get_bitlen( pk ) >= profile->rsa_min_bitlen )    // 确保 RSA 密钥满足最低要求
             return( 0 );
 
         return( -1 );
@@ -423,9 +435,9 @@ static int x509_get_version( unsigned char **p,
         return( MBEDTLS_ERR_X509_INVALID_FORMAT + ret );
     }
 
-    end = *p + len;
+    end = *p + len;     // p 指向 Version tlv 的 v 首， end 指向 v 尾的下一个
 
-    if( ( ret = mbedtls_asn1_get_int( p, end, ver ) ) != 0 )
+    if( ( ret = mbedtls_asn1_get_int( p, end, ver ) ) != 0 )    //将 Version tlv 的 v 转化为 int 类型数值
         return( MBEDTLS_ERR_X509_INVALID_VERSION + ret );
 
     if( *p != end )
@@ -454,10 +466,10 @@ static int x509_get_dates( unsigned char **p,
 
     end = *p + len;
 
-    if( ( ret = mbedtls_x509_get_time( p, end, from ) ) != 0 )
+    if( ( ret = mbedtls_x509_get_time( p, end, from ) ) != 0 )      //解析 开始时间戳
         return( ret );
 
-    if( ( ret = mbedtls_x509_get_time( p, end, to ) ) != 0 )
+    if( ( ret = mbedtls_x509_get_time( p, end, to ) ) != 0 )        //解析 结束时间戳
         return( ret );
 
     if( *p != end )
@@ -859,7 +871,7 @@ static int x509_get_crt_ext( unsigned char **p,
 }
 
 /*
- * Parse and fill a single X.509 certificate in DER format
+ * Parse and fill a single X.509 certificate in DER format      //解析 DER 单证
  */
 static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *buf,
                                     size_t buflen )
@@ -881,9 +893,9 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
 
     // Use the original buffer until we figure out actual length
     p = (unsigned char*) buf;
-    len = buflen;
-    end = p + len;
-
+    len = buflen;       //保存每次要解析的长度
+    end = p + len;      //设置哨兵
+    //  下面的解析最好比对 X.509 证书格式浏览
     /*
      * Certificate  ::=  SEQUENCE  {
      *      tbsCertificate       TBSCertificate,
@@ -903,7 +915,7 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
         return( MBEDTLS_ERR_X509_INVALID_FORMAT +
                 MBEDTLS_ERR_ASN1_LENGTH_MISMATCH );
     }
-    crt_end = p + len;
+    crt_end = p + len;  //p 此时指向的是 tlv 中的 value，而 len 是 value 的大小
 
     // Create and populate a new buffer for the raw field
     crt->raw.len = crt_end - buf;
@@ -911,16 +923,16 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
     if( p == NULL )
         return( MBEDTLS_ERR_X509_ALLOC_FAILED );
 
-    memcpy( p, buf, crt->raw.len );
+    memcpy( p, buf, crt->raw.len );     //将整个 tlv 拷贝到 p 所指向的缓存中
 
     // Direct pointers to the new buffer
-    p += crt->raw.len - len;
-    end = crt_end = p + len;
+    p += crt->raw.len - len;        //p 指针后移，指向 tlv 中的 value
+    end = crt_end = p + len;        //修改哨兵位置，指向 tlv 中的 value 的下一个位置
 
     /*
-     * TBSCertificate  ::=  SEQUENCE  {
+     * TBSCertificate  ::=  SEQUENCE  {     // 对 TBSCertificate 结构进行解析
      */
-    crt->tbs.p = p;
+    crt->tbs.p = p;     //保存 tbs 的 tlv，此时 p 指向 tbs tlv 的 t
 
     if( ( ret = mbedtls_asn1_get_tag( &p, end, &len,
             MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE ) ) != 0 )
@@ -929,15 +941,15 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
         return( MBEDTLS_ERR_X509_INVALID_FORMAT + ret );
     }
 
-    end = p + len;
+    end = p + len;  //此时 p 指向 tbs tlv 的 v 首，修改 end, 使其指向 tbs tlv 的 v尾 的下一个位置
     crt->tbs.len = end - crt->tbs.p;
 
     /*
-     * Version  ::=  INTEGER  {  v1(0), v2(1), v3(2)  }
+     * Version  ::=  INTEGER  {  v1(0), v2(1), v3(2)  }     //对 tbs 的 Version 进行解析， Version 有取值限制， 0-v1 1-v2 2-v3
      *
-     * CertificateSerialNumber  ::=  INTEGER
+     * CertificateSerialNumber  ::=  INTEGER                //对 tbs 的 CertificateSerialNumber 进行解析
      *
-     * signature            AlgorithmIdentifier
+     * signature            AlgorithmIdentifier             //对 tbs 的 AlgorithmIdentifier 进行解析
      */
     if( ( ret = x509_get_version(  &p, end, &crt->version  ) ) != 0 ||
         ( ret = mbedtls_x509_get_serial(   &p, end, &crt->serial   ) ) != 0 ||
@@ -948,15 +960,15 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
         return( ret );
     }
 
-    if( crt->version < 0 || crt->version > 2 )
+    if( crt->version < 0 || crt->version > 2 )      //对证书的版本进行校验，目前 mbedtls 只支持 v1 v2 v3 版本
     {
         mbedtls_x509_crt_free( crt );
         return( MBEDTLS_ERR_X509_UNKNOWN_VERSION );
     }
 
-    crt->version++;
+    crt->version++;     //使版本号与数字一致
 
-    if( ( ret = mbedtls_x509_get_sig_alg( &crt->sig_oid, &sig_params1,
+    if( ( ret = mbedtls_x509_get_sig_alg( &crt->sig_oid, &sig_params1,  //对 AlgorithmIdentifier 结构中的 algorithm 和 parameters 进行解析
                                   &crt->sig_md, &crt->sig_pk,
                                   &crt->sig_opts ) ) != 0 )
     {
@@ -998,7 +1010,7 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
     }
 
     /*
-     * subject              Name
+     * subject              Name            // 解析 NAME ,即 subject
      */
     crt->subject_raw.p = p;
 
@@ -1009,7 +1021,7 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
         return( MBEDTLS_ERR_X509_INVALID_FORMAT + ret );
     }
 
-    if( len && ( ret = mbedtls_x509_get_name( &p, p + len, &crt->subject ) ) != 0 )
+    if( len && ( ret = mbedtls_x509_get_name( &p, p + len, &crt->subject ) ) != 0 )     //将 p + len 视为哨兵
     {
         mbedtls_x509_crt_free( crt );
         return( ret );
@@ -1020,7 +1032,7 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
     /*
      * SubjectPublicKeyInfo
      */
-    if( ( ret = mbedtls_pk_parse_subpubkey( &p, end, &crt->pk ) ) != 0 )
+    if( ( ret = mbedtls_pk_parse_subpubkey( &p, end, &crt->pk ) ) != 0 )        //解析 公钥信息
     {
         mbedtls_x509_crt_free( crt );
         return( ret );
@@ -1034,7 +1046,7 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
      *  extensions      [3]  EXPLICIT Extensions OPTIONAL
      *                       -- If present, version shall be v3
      */
-    if( crt->version == 2 || crt->version == 3 )
+    if( crt->version == 2 || crt->version == 3 )    //版本 2 或 3 才会有 颁发者唯一标识 主题者唯一标识
     {
         ret = x509_get_uid( &p, end, &crt->issuer_id,  1 );
         if( ret != 0 )
@@ -1055,7 +1067,7 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
     }
 
 #if !defined(MBEDTLS_X509_ALLOW_EXTENSIONS_NON_V3)
-    if( crt->version == 3 )
+    if( crt->version == 3 )         //版本3 才会有 扩展项
 #endif
     {
         ret = x509_get_crt_ext( &p, end, crt );
@@ -1082,7 +1094,7 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
      *  signatureAlgorithm   AlgorithmIdentifier,
      *  signatureValue       BIT STRING
      */
-    if( ( ret = mbedtls_x509_get_alg( &p, end, &sig_oid2, &sig_params2 ) ) != 0 )
+    if( ( ret = mbedtls_x509_get_alg( &p, end, &sig_oid2, &sig_params2 ) ) != 0 )       //解析 signatureAlgorithm
     {
         mbedtls_x509_crt_free( crt );
         return( ret );
@@ -1098,7 +1110,7 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt, const unsigned char *
         return( MBEDTLS_ERR_X509_SIG_MISMATCH );
     }
 
-    if( ( ret = mbedtls_x509_get_sig( &p, end, &crt->sig ) ) != 0 )
+    if( ( ret = mbedtls_x509_get_sig( &p, end, &crt->sig ) ) != 0 )     //解析 signatureValue
     {
         mbedtls_x509_crt_free( crt );
         return( ret );
@@ -1130,7 +1142,7 @@ int mbedtls_x509_crt_parse_der( mbedtls_x509_crt *chain, const unsigned char *bu
     if( crt == NULL || buf == NULL )
         return( MBEDTLS_ERR_X509_BAD_INPUT_DATA );
 
-    while( crt->version != 0 && crt->next != NULL )
+    while( crt->version != 0 && crt->next != NULL ) //第一次添加证书到 chain 时，不会走这个
     {
         prev = crt;
         crt = crt->next;
@@ -1139,7 +1151,7 @@ int mbedtls_x509_crt_parse_der( mbedtls_x509_crt *chain, const unsigned char *bu
     /*
      * Add new certificate on the end of the chain if needed.
      */
-    if( crt->version != 0 && crt->next == NULL )
+    if( crt->version != 0 && crt->next == NULL )    //第一次添加证书到 chain 时，不会走这个
     {
         crt->next = mbedtls_calloc( 1, sizeof( mbedtls_x509_crt ) );
 
@@ -1169,6 +1181,13 @@ int mbedtls_x509_crt_parse_der( mbedtls_x509_crt *chain, const unsigned char *bu
  * Parse one or more PEM certificates from a buffer and add them to the chained
  * list
  */
+/**
+    解析证书。
+    @param      _Out_   chain       证书要解析的结构
+    @param      _In_    buf         证书序列缓冲
+    @param      _In_    buflen      证书序列缓冲长度
+    @return     
+ */
 int mbedtls_x509_crt_parse( mbedtls_x509_crt *chain, const unsigned char *buf, size_t buflen )
 {
 #if defined(MBEDTLS_PEM_PARSE_C)
@@ -1186,9 +1205,14 @@ int mbedtls_x509_crt_parse( mbedtls_x509_crt *chain, const unsigned char *buf, s
      * Determine buffer content. Buffer contains either one DER certificate or
      * one or more PEM certificates.
      */
+    /**
+     * 如果一个文件，其证书格式是 PEM，则此文件可以包含 一张 或 多张 PEM证书；
+     * 如果一个文件，其证书格式是 DER，则此文件只能包含 一张 DER证书；
+     * 对于 PEM 文件，如果存在多张证书，必须保证证书的有序性；
+     */
 #if defined(MBEDTLS_PEM_PARSE_C)
     if( buflen != 0 && buf[buflen - 1] == '\0' &&
-        strstr( (const char *) buf, "-----BEGIN CERTIFICATE-----" ) != NULL )
+        strstr( (const char *) buf, "-----BEGIN CERTIFICATE-----" ) != NULL )   //找到第一张证书
     {
         buf_format = MBEDTLS_X509_FORMAT_PEM;
     }
@@ -1200,7 +1224,7 @@ int mbedtls_x509_crt_parse( mbedtls_x509_crt *chain, const unsigned char *buf, s
 #endif
 
 #if defined(MBEDTLS_PEM_PARSE_C)
-    if( buf_format == MBEDTLS_X509_FORMAT_PEM )
+    if( buf_format == MBEDTLS_X509_FORMAT_PEM )     // 对 PEM 证书进行解析
     {
         int ret;
         mbedtls_pem_context pem;
@@ -1248,7 +1272,7 @@ int mbedtls_x509_crt_parse( mbedtls_x509_crt *chain, const unsigned char *buf, s
             else
                 break;
 
-            ret = mbedtls_x509_crt_parse_der( chain, pem.buf, pem.buflen );
+            ret = mbedtls_x509_crt_parse_der( chain, pem.buf, pem.buflen ); //解析ASN.1编码的文件  
 
             mbedtls_pem_free( &pem );
 
@@ -2288,6 +2312,9 @@ static int x509_crt_check_ee_locally_trusted(
  *  - 0 is the chain was successfully built and examined,
  *      even if it was found to be invalid
  */
+/**
+    创建并验证证书链。
+ */
 static int x509_crt_verify_chain(
                 mbedtls_x509_crt *crt,
                 mbedtls_x509_crt *trust_ca,
@@ -2458,6 +2485,10 @@ static int x509_crt_check_cn( const mbedtls_x509_buf *name,
 /*
  * Verify the requested CN - only call this if cn is not NULL!
  */
+/**
+    校验证书持有者的 CN（别名）。
+    如果证书有 SubjectAltName 扩展项，则该扩展项的 CN 可能有多个，只有传入的 CN 与其中任何一个一致就通过。
+ */
 static void x509_crt_verify_name( const mbedtls_x509_crt *crt,
                                   const char *cn,
                                   uint32_t *flags )
@@ -2466,7 +2497,7 @@ static void x509_crt_verify_name( const mbedtls_x509_crt *crt,
     const mbedtls_x509_sequence *cur;
     size_t cn_len = strlen( cn );
 
-    if( crt->ext_types & MBEDTLS_X509_EXT_SUBJECT_ALT_NAME )
+    if( crt->ext_types & MBEDTLS_X509_EXT_SUBJECT_ALT_NAME )    // 如果有 SubjectAltName 扩展项，校验 CN
     {
         for( cur = &crt->subject_alt_names; cur != NULL; cur = cur->next )
         {
@@ -2477,7 +2508,7 @@ static void x509_crt_verify_name( const mbedtls_x509_crt *crt,
         if( cur == NULL )
             *flags |= MBEDTLS_X509_BADCERT_CN_MISMATCH;
     }
-    else
+    else        // 证书持有者 subject ，校验 CN
     {
         for( name = &crt->subject; name != NULL; name = name->next )
         {
@@ -2525,6 +2556,16 @@ static int x509_crt_merge_flags_with_cb(
 /*
  * Verify the certificate validity (default profile, not restartable)
  */
+/**
+    证书有效性验证。
+    @param  crt         _In_    待验证证书   
+    @param  trust_ca    _In_    可信任证书链
+    @param  ca_crl      _In_    吊销列表
+    @param  cn          _In_    common name(证书持有者的别名)
+    @param  flags       _In_
+    @param  f_vrfy      _In_    验证回调函数
+    @param  p_vrfy      _In_    验证回调参数
+ */
 int mbedtls_x509_crt_verify( mbedtls_x509_crt *crt,
                      mbedtls_x509_crt *trust_ca,
                      mbedtls_x509_crl *ca_crl,
@@ -2539,6 +2580,14 @@ int mbedtls_x509_crt_verify( mbedtls_x509_crt *crt,
 
 /*
  * Verify the certificate validity (user-chosen profile, not restartable)
+ */
+/**
+    证书有效性验证，根据配置。
+    此函数：
+    - 校验 CN（证书都会有 CN, CN 是必须要校验的）
+    - 校验证书密钥的类型和长度，这并不是当前证书链接建立和验证的一部分
+    - 建立及验证证书链
+    - 调用回调及混合 flags
  */
 int mbedtls_x509_crt_verify_with_profile( mbedtls_x509_crt *crt,
                      mbedtls_x509_crt *trust_ca,
@@ -2588,15 +2637,15 @@ int mbedtls_x509_crt_verify_restartable( mbedtls_x509_crt *crt,
 
     /* check name if requested */
     if( cn != NULL )
-        x509_crt_verify_name( crt, cn, &ee_flags );
+        x509_crt_verify_name( crt, cn, &ee_flags ); // 校验证书持有者名称
 
     /* Check the type and size of the key */
-    pk_type = mbedtls_pk_get_type( &crt->pk );
+    pk_type = mbedtls_pk_get_type( &crt->pk );      // 校验非对称密钥类型及长度
 
-    if( x509_profile_check_pk_alg( profile, pk_type ) != 0 )
+    if( x509_profile_check_pk_alg( profile, pk_type ) != 0 )   // 证书解析环境是否支持证书中的非对称算法
         ee_flags |= MBEDTLS_X509_BADCERT_BAD_PK;
 
-    if( x509_profile_check_key( profile, &crt->pk ) != 0 )
+    if( x509_profile_check_key( profile, &crt->pk ) != 0 )     // 校验非对称算法其他内容是否符合要求
         ee_flags |= MBEDTLS_X509_BADCERT_BAD_KEY;
 
     /* Check the chain */

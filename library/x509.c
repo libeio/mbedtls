@@ -107,7 +107,7 @@
 /*
  *  CertificateSerialNumber  ::=  INTEGER
  */
-int mbedtls_x509_get_serial( unsigned char **p, const unsigned char *end,
+int mbedtls_x509_get_serial( unsigned char **p, const unsigned char *end,       //传入时 p 指向 CertificateSerialNumber 的 tlv 的 t，传出时指向 tlv 的 v 尾
                      mbedtls_x509_buf *serial )
 {
     int ret;
@@ -121,7 +121,7 @@ int mbedtls_x509_get_serial( unsigned char **p, const unsigned char *end,
         return( MBEDTLS_ERR_X509_INVALID_SERIAL +
                 MBEDTLS_ERR_ASN1_UNEXPECTED_TAG );
 
-    serial->tag = *(*p)++;
+    serial->tag = *(*p)++;  //取 *p 指向的值，之后将 *p 后移
 
     if( ( ret = mbedtls_asn1_get_len( p, end, &serial->len ) ) != 0 )
         return( MBEDTLS_ERR_X509_INVALID_SERIAL + ret );
@@ -375,14 +375,14 @@ int mbedtls_x509_get_rsassa_pss_params( const mbedtls_x509_buf *params,
  *
  *  AttributeValue ::= ANY DEFINED BY AttributeType
  */
-static int x509_get_attr_type_value( unsigned char **p,
+static int x509_get_attr_type_value( unsigned char **p,             //入参时 p 指向 AttributeTypeAndValue tlv 的 t
                                      const unsigned char *end,
                                      mbedtls_x509_name *cur )
 {
     int ret;
     size_t len;
-    mbedtls_x509_buf *oid;
-    mbedtls_x509_buf *val;
+    mbedtls_x509_buf *oid;      //oid 变动指针
+    mbedtls_x509_buf *val;      //val 变动指针
 
     if( ( ret = mbedtls_asn1_get_tag( p, end, &len,
             MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE ) ) != 0 )
@@ -390,24 +390,24 @@ static int x509_get_attr_type_value( unsigned char **p,
 
     end = *p + len;
 
-    if( ( end - *p ) < 1 )
+    if( ( end - *p ) < 1 )      //此时 p 指向 AttributeTypeAndValue tlv 的 v
         return( MBEDTLS_ERR_X509_INVALID_NAME +
                 MBEDTLS_ERR_ASN1_OUT_OF_DATA );
 
     oid = &cur->oid;
-    oid->tag = **p;
+    oid->tag = **p;     //存储 AttributeType tlv 的 t
 
     if( ( ret = mbedtls_asn1_get_tag( p, end, &oid->len, MBEDTLS_ASN1_OID ) ) != 0 )
         return( MBEDTLS_ERR_X509_INVALID_NAME + ret );
 
-    oid->p = *p;
-    *p += oid->len;
+    oid->p = *p;        //存储 AttributeType tlv 的 v
+    *p += oid->len;     //跳过 AttributeType，p 指向 AttributeValue tlv 的 t
 
     if( ( end - *p ) < 1 )
         return( MBEDTLS_ERR_X509_INVALID_NAME +
                 MBEDTLS_ERR_ASN1_OUT_OF_DATA );
 
-    if( **p != MBEDTLS_ASN1_BMP_STRING && **p != MBEDTLS_ASN1_UTF8_STRING      &&
+    if( **p != MBEDTLS_ASN1_BMP_STRING && **p != MBEDTLS_ASN1_UTF8_STRING      &&   //AttributeValue tlv 的 v 类型必须为字符串
         **p != MBEDTLS_ASN1_T61_STRING && **p != MBEDTLS_ASN1_PRINTABLE_STRING &&
         **p != MBEDTLS_ASN1_IA5_STRING && **p != MBEDTLS_ASN1_UNIVERSAL_STRING &&
         **p != MBEDTLS_ASN1_BIT_STRING )
@@ -415,13 +415,13 @@ static int x509_get_attr_type_value( unsigned char **p,
                 MBEDTLS_ERR_ASN1_UNEXPECTED_TAG );
 
     val = &cur->val;
-    val->tag = *(*p)++;
+    val->tag = *(*p)++;     //存储 AttributeValue tlv 的 t
 
     if( ( ret = mbedtls_asn1_get_len( p, end, &val->len ) ) != 0 )
         return( MBEDTLS_ERR_X509_INVALID_NAME + ret );
 
-    val->p = *p;
-    *p += val->len;
+    val->p = *p;        //存储 AttributeValue tlv 的 v
+    *p += val->len;     //跳过 AttributeValue, p 指向下一个 AttributeTypeAndValue tlv 的 t （如果有的话）
 
     if( *p != end )
     {
@@ -436,9 +436,9 @@ static int x509_get_attr_type_value( unsigned char **p,
 
 /*
  *  Name ::= CHOICE { -- only one possibility for now --
- *       rdnSequence  RDNSequence }
+ *       rdnSequence  RDNSequence }         //虽然是个选择结构，但这里可供选择的只有一个  RDNSequence
  *
- *  RDNSequence ::= SEQUENCE OF RelativeDistinguishedName
+ *  RDNSequence ::= SEQUENCE OF RelativeDistinguishedName   //RDSequence 是一个 list，list 的每个元素类型是 SET OF，...
  *
  *  RelativeDistinguishedName ::=
  *    SET OF AttributeTypeAndValue
@@ -457,15 +457,58 @@ static int x509_get_attr_type_value( unsigned char **p,
  * same set so that they are "merged" together in the functions that consume
  * this list, eg mbedtls_x509_dn_gets().
  */
-int mbedtls_x509_get_name( unsigned char **p, const unsigned char *end,
-                   mbedtls_x509_name *cur )
+/**
+    真正实现的时候，却是下面这个样子（以 Json 的格式示例）
+    SEQUENCE : {                                -- RDNSequence                      这里应该理解为 SEQUENCE OF　　
+        SET : {                                 -- RelativeDistinguishedName        这里应该理解为 SET OF
+            SEQUENCE : {                        -- AttributeTypeAndValue
+                OBJECT : countryName            -- AttributeType
+                PRINTABLESTRING : NL            -- AttributeValue
+            }
+            SEQUENCE : {                        -- 实现在使用中 每个 SET OF 里面只有一个 SEQUENCE
+                OBJECT : countryName
+                PRINTABLESTRING : CN
+            }
+        }
+        SET : {                                 -- RelativeDistinguishedName
+            SEQUENCE : {                        -- AttributeTypeAndValue
+                OBJECT : organizationName       -- AttributeType
+                UTF8STRING : PolarSSL           -- AttributeValue
+            }
+        }
+        SET : {                                 -- RelativeDistinguishedName
+            SEQUENCE : {                        -- AttributeTypeAndValue
+                OBJECT : commonName             -- AttributeType
+                UTF8STRING : PolarSSL Test CA   -- AttributeValue
+            }
+        }
+    }
+        -- 以上只是 RDNSequence 的第一个元素，但因为实际也只需要一个元素即可，所以下面的就不写了...
+ */
+/**
+    在第3个入参 cur 上迷了头天，一直在想，cur在这个函数里一直不停的指向新生成内存的 next ，结束时也没重新置过来，但为什么函数说明中却说指向第一个元素呢？
+    现在明白了，示例如下：
+        ori_p: 在原函数中调用此函数时的指针
+        cur_p: 传入此函数的指针
+        
+        在传入时，ori_p 的一份拷贝赋值给了 cur_p，cur_p 也指向了与 ori_p 同样的位置， cur_p 不断的向后移动，而 ori_p 始终指向原来的位置
+        +-----+    +-----+    +-----+    
+        |value| -> |value| -> |value| -> NULL
+        +-----+    +-----+    +-----+
+           ↑          ↑
+        ori_p     cur_p  -> I am coming!
+
+
+ */
+int mbedtls_x509_get_name( unsigned char **p, const unsigned char *end,     // mbedtls 中， SEQUENCE OF 按照 SET OF 的方式解析
+                   mbedtls_x509_name *cur )     // 这里传入的是 原来的 cur 指针的拷贝，所以在这个函数里
 {
     int ret;
     size_t set_len;
     const unsigned char *end_set;
 
     /* don't use recursion, we'd risk stack overflow if not optimized */
-    while( 1 )
+    while( 1 )  //解析 RDNSequence 中的每个 RelativeDistinguishedName
     {
         /*
          * parse SET
@@ -474,9 +517,9 @@ int mbedtls_x509_get_name( unsigned char **p, const unsigned char *end,
                 MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SET ) ) != 0 )
             return( MBEDTLS_ERR_X509_INVALID_NAME + ret );
 
-        end_set  = *p + set_len;
+        end_set  = *p + set_len;    //每到这个地方，p 都会指向每个 SET tlv 的 v首，end_set 会指向这个 SET tlv 的 v尾
 
-        while( 1 )
+        while( 1 )      //遍历 RelativeDistinguishedName 中的 SEQUENCE
         {
             if( ( ret = x509_get_attr_type_value( p, end_set, cur ) ) != 0 )
                 return( ret );
@@ -487,7 +530,7 @@ int mbedtls_x509_get_name( unsigned char **p, const unsigned char *end,
             /* Mark this item as being no the only one in a set */
             cur->next_merged = 1;
 
-            cur->next = mbedtls_calloc( 1, sizeof( mbedtls_x509_name ) );
+            cur->next = mbedtls_calloc( 1, sizeof( mbedtls_x509_name ) );   // 下一个 SET 元素
 
             if( cur->next == NULL )
                 return( MBEDTLS_ERR_X509_ALLOC_FAILED );
@@ -559,11 +602,15 @@ static int x509_date_is_valid(const mbedtls_x509_time *t )
     return( 0 );
 }
 
+/**
+    UTC Time 格式：                  YYMMDDHHMMSSZ     -- 最后一个 Z 代表对时间的微分
+    Generalized Time 格式：        YYYYMMDDHHMMSSZ
+ */
 /*
  * Parse an ASN1_UTC_TIME (yearlen=2) or ASN1_GENERALIZED_TIME (yearlen=4)
  * field.
  */
-static int x509_parse_time( unsigned char **p, size_t len, size_t yearlen,
+static int x509_parse_time( unsigned char **p, size_t len, size_t yearlen,      //这里以 Generalized Time 进行说明  p 入参指向 年
                             mbedtls_x509_time *tm )
 {
     int ret;
@@ -571,14 +618,14 @@ static int x509_parse_time( unsigned char **p, size_t len, size_t yearlen,
     /*
      * Minimum length is 10 or 12 depending on yearlen
      */
-    if ( len < yearlen + 8 )
+    if ( len < yearlen + 8 )            //确保该有的一定要有 YYYYMMDDHHMM
         return ( MBEDTLS_ERR_X509_INVALID_DATE );
     len -= yearlen + 8;
 
     /*
      * Parse year, month, day, hour, minute
      */
-    CHECK( x509_parse_int( p, yearlen, &tm->year ) );
+    CHECK( x509_parse_int( p, yearlen, &tm->year ) );       //解析 p 指向的 4 个字节，即 YYYYMMDDHHMMSSZ 中的 YYYY
     if ( 2 == yearlen )
     {
         if ( tm->year < 50 )
@@ -587,7 +634,7 @@ static int x509_parse_time( unsigned char **p, size_t len, size_t yearlen,
         tm->year += 1900;
     }
 
-    CHECK( x509_parse_int( p, 2, &tm->mon ) );
+    CHECK( x509_parse_int( p, 2, &tm->mon ) );              //解析 p 指向的 2 个字节，即 YYYYMMDDHHMMSSZ 中的 MM
     CHECK( x509_parse_int( p, 2, &tm->day ) );
     CHECK( x509_parse_int( p, 2, &tm->hour ) );
     CHECK( x509_parse_int( p, 2, &tm->min ) );
@@ -639,18 +686,18 @@ int mbedtls_x509_get_time( unsigned char **p, const unsigned char *end,
         return( MBEDTLS_ERR_X509_INVALID_DATE +
                 MBEDTLS_ERR_ASN1_OUT_OF_DATA );
 
-    tag = **p;
+    tag = **p;      //p 指向 Time tlv 的 t
 
-    if( tag == MBEDTLS_ASN1_UTC_TIME )
-        year_len = 2;
-    else if( tag == MBEDTLS_ASN1_GENERALIZED_TIME )
-        year_len = 4;
+    if( tag == MBEDTLS_ASN1_UTC_TIME )                  // UTC 时间，距 1970 年 1 月 1 日午夜时的毫秒数（时间戳）
+        year_len = 2;       // 使用 2 个字节存储 年
+    else if( tag == MBEDTLS_ASN1_GENERALIZED_TIME )     // 通用时间 ASN.1格式 YYYYMMDDHHMMSSZ
+        year_len = 4;       // 使用 4 个字节存储 年
     else
         return( MBEDTLS_ERR_X509_INVALID_DATE +
                 MBEDTLS_ERR_ASN1_UNEXPECTED_TAG );
 
-    (*p)++;
-    ret = mbedtls_asn1_get_len( p, end, &len );
+    (*p)++;         //p 后移一位，指向 Time tlv 的 l
+    ret = mbedtls_asn1_get_len( p, end, &len );     //时间应该用的是 CONTEXT-SPECIFIC, mbedtls 规定，必须要有 年 月 日 时 分，至于 秒，可以有也可以没有
 
     if( ret != 0 )
         return( MBEDTLS_ERR_X509_INVALID_DATE + ret );

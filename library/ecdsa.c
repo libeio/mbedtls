@@ -357,7 +357,7 @@ mul:
                                                           ECDSA_RS_ECP ) );
             MBEDTLS_MPI_CHK( mbedtls_mpi_mod_mpi( pr, &R.X, &grp->N ) );
         }
-        while( mbedtls_mpi_cmp_int( pr, 0 ) == 0 );
+        while( mbedtls_mpi_cmp_int( pr, 0 ) == 0 );     //R.X与 grp->N相异
 
 #if defined(MBEDTLS_ECP_RESTARTABLE)
         if( rs_ctx != NULL && rs_ctx->sig != NULL )
@@ -374,7 +374,7 @@ modn:
         /*
          * Step 5: derive MPI from hashed message
          */
-        MBEDTLS_MPI_CHK( derive_mpi( grp, &e, buf, blen ) );
+        MBEDTLS_MPI_CHK( derive_mpi( grp, &e, buf, blen ) );    //设置e
 
         /*
          * Generate a random value to blind inv_mod in next step,
@@ -384,7 +384,7 @@ modn:
                                                   p_rng_blind ) );
 
         /*
-         * Step 6: compute s = (e + r * d) / k = t (e + rd) / (kt) mod n
+         * Step 6: compute s = (e + r * d) / k = t (e + rd) / (kt) mod n    //s为签名
          */
         MBEDTLS_MPI_CHK( mbedtls_mpi_mul_mpi( s, pr, d ) );
         MBEDTLS_MPI_CHK( mbedtls_mpi_add_mpi( &e, &e, s ) );
